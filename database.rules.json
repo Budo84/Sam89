@@ -1,0 +1,21 @@
+{
+  "rules": {
+    "families": {
+      "$token": {
+        ".read": true,
+        ".write": "auth != null"
+      }
+    },
+    "rsvp": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$token": {
+        ".read": true,
+        "$matchId": {
+          ".write": "root.child('families').child($token).child('matches').child($matchId).exists()",
+          ".validate": "newData.val() == 'si' || newData.val() == 'no'"
+        }
+      }
+    }
+  }
+}

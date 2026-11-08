@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Winter Cup 2026 - Sam 89</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#1f2937">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<style>
+:root{--bg:#111827;--card:#1f2937;--card2:#0f172a;--line:#374151;--txt:#f3f4f6;--mut:#9ca3af;--blue:#3b82f6;--green:#22c55e;--red:#ef4444;--yel:#eab308}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;min-height:100vh;padding-bottom:env(safe-area-inset-bottom)}
+header{background:var(--card);border-bottom:1px solid var(--line);padding:12px 16px;text-align:center;position:sticky;top:0;z-index:20}
+header h1{margin:0;font-size:20px}
+nav{display:flex;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:48px;z-index:20}
+nav a{flex:1;text-align:center;padding:12px 4px;color:var(--mut);text-decoration:none;font-size:14px;border-bottom:2px solid transparent}
+nav a.active{color:var(--blue);border-color:var(--blue);font-weight:700}
+main{max-width:640px;margin:0 auto;padding:14px 10px 40px}
+h2{font-size:19px;text-align:center;color:#60a5fa;margin:6px 0 14px}
+h3{font-size:15px;margin:18px 0 8px;color:var(--mut)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px}
+.card.sam{border-color:#2563eb;box-shadow:0 0 0 1px #2563eb55}
+.row{display:flex;align-items:center;gap:8px}
+.between{justify-content:space-between}
+.small{font-size:12px;color:var(--mut)}
+.btn{background:#374151;color:var(--txt);border:1px solid #4b5563;border-radius:8px;padding:8px 12px;font-size:14px;cursor:pointer;text-decoration:none;display:inline-block}
+.btn:active{opacity:.7}
+.btn.primary{background:#2563eb;border-color:#2563eb}
+.btn.danger{background:#7f1d1d;border-color:#b91c1c}
+.btn.sm{padding:5px 9px;font-size:12px}
+.btn:disabled{opacity:.35}
+input[type=text],input[type=number],textarea{background:var(--card2);border:1px solid #4b5563;border-radius:8px;color:var(--txt);padding:9px;font-size:15px;width:100%}
+input:focus,textarea:focus{outline:none;border-color:var(--blue)}
+.score{width:44px!important;height:44px;text-align:center;font-size:20px!important;font-weight:700;padding:0!important}
+.teams{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
+.teams .t{flex:1;font-weight:600;font-size:15px}
+.teams .t.h{text-align:right}
+.dash{color:var(--mut)}
+.old{text-decoration:line-through;color:#6b7280;margin-right:6px}
+.new{color:#4ade80;font-weight:700}
+.chips{display:flex;gap:6px;margin-bottom:12px}
+.chip{padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--mut);font-size:13px;cursor:pointer}
+.chip.on{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
+table{width:100%;border-collapse:collapse;font-size:13px;text-align:center}
+th,td{border:1px solid #4b5563;padding:7px 3px}
+th{background:#374151}
+td.l,th.l{text-align:left;padding-left:8px}
+tr.q{background:#14532d44}
+tr.e{background:#7f1d1d44}
+tr.me td.l{color:#93c5fd;font-weight:700}
+.pos{color:#4ade80}.neg{color:#f87171}
+.legend{font-size:12px;color:var(--mut);margin-top:10px}
+.legend i{display:inline-block;width:11px;height:11px;margin-right:5px;vertical-align:-1px}
+.imp{border-radius:8px;border:1px solid;padding:9px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.imp.Campionato{background:#1e3a8a;border-color:#2563eb}.imp.Allenamento{background:#14532d;border-color:#16a34a}.imp.Fasi{background:#713f12;border-color:#ca8a04}
+.imp.past{opacity:.45}
+.modal{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+.modal.on{display:flex}
+.modal .box{background:var(--card);border:1px solid var(--line);border-radius:12px;width:100%;max-width:340px;padding:18px}
+.stack>*{margin-bottom:8px}
+/* Presenze */
+.att{display:flex;align-items:center;justify-content:space-between;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);margin-bottom:6px;cursor:pointer;user-select:none}
+.att .nm{font-weight:600}
+.att .st{font-size:13px;padding:4px 10px;border-radius:999px;background:#374151;color:var(--mut)}
+.att.on{border-color:#16a34a;background:#14532d55}
+.att.on .st{background:#16a34a;color:#fff}
+.num{display:inline-block;min-width:26px;text-align:center;background:#374151;border-radius:6px;font-size:12px;padding:2px 4px;margin-right:8px;color:#d1d5db}
+/* Campo */
+.pitchbox{max-width:380px;margin:0 auto}
+.pitch{position:relative;width:100%;aspect-ratio:2/3;border-radius:10px;overflow:hidden;border:2px solid #fff3}
+.pitch svg{position:absolute;inset:0;width:100%;height:100%}
+.slot{position:absolute;transform:translate(-50%,-50%);background:none;border:0;padding:0;display:flex;flex-direction:column;align-items:center;width:84px;cursor:pointer;color:#fff}
+.shirt{width:46px;height:46px;border-radius:50%;background:#1d4ed8;border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;box-shadow:0 2px 6px #0006}
+.slot.gk .shirt{background:#ca8a04}
+.slot.empty .shirt{background:#ffffff1f;border:2px dashed #ffffffaa;font-size:12px;font-weight:600;color:#ffffffcc}
+.slot.sel .shirt{outline:4px solid #facc15;outline-offset:2px}
+.slot .lbl{margin-top:3px;font-size:12px;font-weight:700;background:#000a;border-radius:6px;padding:1px 6px;max-width:84px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bench{display:flex;flex-wrap:wrap;gap:6px}
+.bchip{padding:8px 12px;border-radius:999px;background:#374151;border:2px solid transparent;font-size:14px;font-weight:600;color:var(--txt);cursor:pointer}
+.bchip.sel{border-color:#facc15;background:#713f12}
+.hint{font-size:12px;color:var(--mut);text-align:center;margin:8px 0}
+.bar{height:6px;background:#374151;border-radius:3px;overflow:hidden;margin-top:6px}
+.bar>div{height:100%;background:#22c55e}
+.empty-msg{text-align:center;color:var(--mut);padding:24px 8px}
+.ctr{text-align:center}
+.tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;margin-top:4px}
+.tag.si{background:#14532d;color:#86efac}.tag.no{background:#7f1d1d;color:#fca5a5}.tag.nr{background:#374151;color:#9ca3af}
+.sum{font-size:13px;color:var(--mut);margin:0 0 8px}
+.status{font-size:13px;margin-top:6px}.status.ok{color:#4ade80}.status.ko{color:#f87171}
+.linkrow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid var(--line)}
+label.f{display:block;font-size:12px;color:var(--mut);margin:8px 0 3px}
+</style>
+</head>
+<body>
+<header><h1>⚽ Winter Cup 2026</h1></header>
+<nav id="nav">
+  <a href="#/calendario" data-t="calendario">Calendario</a>
+  <a href="#/classifica" data-t="classifica">Classifica</a>
+  <a href="#/impegni" data-t="impegni">Impegni</a>
+  <a href="#/rosa" data-t="rosa">Rosa</a>
+</nav>
+<main id="view"></main>
+
+<div class="modal" id="modal">
+  <div class="box">
+    <h3 style="margin:0 0 4px;color:#fff;font-size:17px">Rimanda partita</h3>
+    <p class="small" id="modal-name" style="margin:0 0 12px"></p>
+    <label class="small">Nuova data (GG/MM/AAAA)</label>
+    <input type="text" id="modal-date" placeholder="es. 15/11/2026" inputmode="numeric" style="margin:4px 0 14px">
+    <div class="stack">
+      <button class="btn primary" style="width:100%" onclick="saveRecupero()">Salva nuova data</button>
+      <button class="btn danger" style="width:100%" onclick="clearRecupero()">Rimuovi recupero</button>
+      <button class="btn" style="width:100%" onclick="closeModal()">Annulla</button>
+    </div>
+  </div>
+</div>
+
+<script>
+if ('serviceWorker' in navigator) { window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{})); }
+
+/* ================= DATI ================= */
+const ME = 'Sam 89';
+const TEAMS = ['Cr Sport','Calcutta Team','San Vincenzo De Paoli','Soccer Sgl','Sam 89','Atl Lodigiani'];
+const initialMatches = [
+ {id:1,date:"17/10/2026",time:"15:00",home:"Cr Sport",away:"Calcutta Team",s1:"3",s2:"1",newDate:""},
+ {id:2,date:"17/10/2026",time:"16:00",home:"Soccer Sgl",away:"San Vincenzo De Paoli",s1:"2",s2:"1",newDate:""},
+ {id:3,date:"24/10/2026",time:"16:00",home:"San Vincenzo De Paoli",away:"Sam 89",s1:"2",s2:"1",newDate:""},
+ {id:4,date:"26/10/2026",time:"18:15",home:"Soccer Sgl",away:"Calcutta Team",s1:"1",s2:"3",newDate:""},
+ {id:5,date:"02/11/2026",time:"18:15",home:"Cr Sport",away:"Soccer Sgl",s1:"",s2:"",newDate:""},
+ {id:6,date:"05/11/2026",time:"17:15",home:"Soccer Sgl",away:"Sam 89",s1:"",s2:"",newDate:""},
+ {id:7,date:"07/11/2026",time:"16:30",home:"San Vincenzo De Paoli",away:"Calcutta Team",s1:"",s2:"",newDate:""},
+ {id:8,date:"07/11/2026",time:"17:30",home:"Soccer Sgl",away:"Atl Lodigiani",s1:"",s2:"",newDate:""},
+ {id:9,date:"09/11/2026",time:"17:15",home:"San Vincenzo De Paoli",away:"Atl Lodigiani",s1:"",s2:"",newDate:""},
+ {id:10,date:"09/11/2026",time:"17:15",home:"Calcutta Team",away:"Sam 89",s1:"",s2:"",newDate:""},
+ {id:11,date:"09/11/2026",time:"18:15",home:"Cr Sport",away:"San Vincenzo De Paoli",s1:"",s2:"",newDate:""},
+ {id:12,date:"14/11/2026",time:"15:30",home:"Sam 89",away:"Atl Lodigiani",s1:"",s2:"",newDate:""},
+ {id:13,date:"14/11/2026",time:"16:30",home:"Calcutta Team",away:"Atl Lodigiani",s1:"",s2:"",newDate:""},
+ {id:14,date:"16/11/2026",time:"18:15",home:"Cr Sport",away:"Atl Lodigiani",s1:"",s2:"",newDate:""},
+ {id:15,date:"16/11/2026",time:"19:15",home:"Cr Sport",away:"Sam 89",s1:"",s2:"",newDate:""},
+ {id:16,date:"19/11/2026",time:"17:15",home:"Sam 89",away:"San Vincenzo De Paoli",s1:"",s2:"",newDate:""},
+ {id:17,date:"21/11/2026",time:"16:00",home:"Calcutta Team",away:"Cr Sport",s1:"",s2:"",newDate:""},
+ {id:18,date:"21/11/2026",time:"17:00",home:"Atl Lodigiani",away:"Soccer Sgl",s1:"",s2:"",newDate:""},
+ {id:19,date:"21/11/2026",time:"18:00",home:"Atl Lodigiani",away:"San Vincenzo De Paoli",s1:"",s2:"",newDate:""},
+ {id:20,date:"23/11/2026",time:"17:15",home:"San Vincenzo De Paoli",away:"Soccer Sgl",s1:"",s2:"",newDate:""},
+ {id:21,date:"23/11/2026",time:"18:15",home:"Calcutta Team",away:"Soccer Sgl",s1:"",s2:"",newDate:""},
+ {id:22,date:"26/11/2026",time:"17:15",home:"Sam 89",away:"Calcutta Team",s1:"",s2:"",newDate:""},
+ {id:23,date:"28/11/2026",time:"17:00",home:"Atl Lodigiani",away:"San Vincenzo De Paoli",s1:"",s2:"",newDate:""},
+ {id:24,date:"28/11/2026",time:"18:00",home:"Atl Lodigiani",away:"Cr Sport",s1:"",s2:"",newDate:""},
+ {id:25,date:"30/11/2026",time:"17:15",home:"San Vincenzo De Paoli",away:"Cr Sport",s1:"",s2:"",newDate:""},
+ {id:26,date:"30/11/2026",time:"18:15",home:"Soccer Sgl",away:"Cr Sport",s1:"",s2:"",newDate:""},
+ {id:27,date:"03/12/2026",time:"17:15",home:"Sam 89",away:"Calcutta Team",s1:"",s2:"",newDate:""},
+ {id:28,date:"03/12/2026",time:"18:15",home:"Atl Lodigiani",away:"Sam 89",s1:"",s2:"",newDate:""},
+ {id:29,date:"05/12/2026",time:"17:00",home:"Calcutta Team",away:"Soccer Sgl",s1:"",s2:"",newDate:""},
+ {id:30,date:"05/12/2026",time:"18:00",home:"Sam 89",away:"Cr Sport",s1:"",s2:"",newDate:""}
+];
+
+const LS_M = 'winterCupData26';      // stesso nome della versione precedente: i risultati già inseriti restano
+const LS_A = 'winterCupApp26';       // rosa, presenze, formazioni
+function load(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
+let matches = load(LS_M) || JSON.parse(JSON.stringify(initialMatches));
+let app = load(LS_A) || {};
+app.players = app.players || []; app.att = app.att || {}; app.lineup = app.lineup || {};
+function saveM(){ localStorage.setItem(LS_M, JSON.stringify(matches)); }
+function saveA(){ localStorage.setItem(LS_A, JSON.stringify(app)); }
+
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const isSam = m => m.home === ME || m.away === ME;
+const view = document.getElementById('view');
+const pad = n => String(n).padStart(2,'0');
+const fmtDate = d => pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear();
+const DAYS = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+const parseDate = s => { const p=(s||'').split('/'); return p.length===3 ? new Date(+p[2],+p[1]-1,+p[0]) : null; };
+const effDate = m => m.newDate || m.date;
+
+/* ================= ROUTER ================= */
+function route(){
+  const parts = (location.hash.replace(/^#\/?/,'') || 'calendario').split('/');
+  const name = parts[0], arg = parts[1];
+  document.querySelectorAll('#nav a').forEach(a => a.classList.toggle('active', a.dataset.t === (name==='partita'?'calendario':name)));
+  sel = null;
+  if(name==='classifica') vClassifica();
+  else if(name==='impegni') vImpegni();
+  else if(name==='rosa') vRosa();
+  else if(name==='partita') vPartita(+arg);
+  else vCalendario();
+  window.scrollTo(0,0);
+}
+window.addEventListener('hashchange', route);
+
+/* ================= CALENDARIO ================= */
+let calFilter = 'all';
+function setFilter(f){ calFilter = f; vCalendario(); }
+function presentCount(id){ const a = app.att[id]; return a ? Object.keys(a).length : null; }
+function vCalendario(){
+  let h = `<h2>Risultati e Calendario</h2>
+  <div class="chips"><span class="chip ${calFilter==='all'?'on':''}" onclick="setFilter('all')">Tutte</span>
+  <span class="chip ${calFilter==='sam'?'on':''}" onclick="setFilter('sam')">Solo ${ME}</span></div>`;
+  matches.filter(m => calFilter==='all' || isSam(m)).forEach(m => {
+    const idx = matches.indexOf(m);
+    const dt = m.newDate ? `<span class="old">${m.date}</span><span class="new">${m.newDate}</span>` : m.date;
+    const pc = presentCount(m.id);
+    h += `<div class="card ${isSam(m)?'sam':''}">
+      <div class="row between small"><div>${dt} · ${m.time}</div>
+        <button class="btn sm" onclick="openModal(${m.id})">🔄 Rimanda</button></div>
+      <div class="teams">
+        <div class="t h">${esc(m.home)}</div>
+        <div class="row" style="padding:0 8px">
+          <input class="score" type="number" min="0" inputmode="numeric" value="${m.s1}" onchange="setScore(${idx},'s1',this.value)">
+          <span class="dash">-</span>
+          <input class="score" type="number" min="0" inputmode="numeric" value="${m.s2}" onchange="setScore(${idx},'s2',this.value)">
+        </div>
+        <div class="t">${esc(m.away)}</div>
+      </div>
+      ${isSam(m) ? `<div style="margin-top:10px" class="ctr"><a class="btn primary sm" href="#/partita/${m.id}">👥 Presenze e formazione${pc!==null?` · ${pc} present${pc===1?'e':'i'}`:''}</a></div>` : ''}
+    </div>`;
+  });
+  view.innerHTML = h;
+}
+function setScore(idx, f, v){ matches[idx][f] = v; saveM(); }
+
+/* modal recupero */
+let modalId = null;
+function openModal(id){ modalId=id; const m=matches.find(x=>x.id===id);
+  document.getElementById('modal-name').textContent = `${m.home} vs ${m.away} (originale: ${m.date})`;
+  document.getElementById('modal-date').value = m.newDate||''; document.getElementById('modal').classList.add('on'); }
+function closeModal(){ document.getElementById('modal').classList.remove('on'); modalId=null; }
+function saveRecupero(){ const v=document.getElementById('modal-date').value.trim();
+  if(v && !/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(v)){ alert('Formato data non valido: usa GG/MM/AAAA'); return; }
+  const d=parseDate(v); matches.find(x=>x.id===modalId).newDate = d ? fmtDate(d) : ''; saveM(); closeModal(); route(); autoPublish(); }
+function clearRecupero(){ matches.find(x=>x.id===modalId).newDate=''; saveM(); closeModal(); route(); autoPublish(); }
+
+/* ================= CLASSIFICA ================= */
+function vClassifica(){
+  const t = {}; TEAMS.forEach(n => t[n] = {nome:n,pt:0,g:0,v:0,n:0,p:0,gf:0,gs:0,dr:0});
+  matches.forEach(m => {
+    if(m.s1==='' || m.s2==='' || isNaN(parseInt(m.s1)) || isNaN(parseInt(m.s2))) return;
+    const a=parseInt(m.s1), b=parseInt(m.s2), H=t[m.home], A=t[m.away];
+    H.g++;A.g++;H.gf+=a;H.gs+=b;A.gf+=b;A.gs+=a;
+    if(a>b){H.v++;H.pt+=3;A.p++} else if(a<b){A.v++;A.pt+=3;H.p++} else {H.n++;A.n++;H.pt++;A.pt++}
+  });
+  const arr = Object.values(t); arr.forEach(x=>x.dr=x.gf-x.gs);
+  arr.sort((a,b)=> b.pt-a.pt || b.dr-a.dr || b.gf-a.gf);
+  let h = `<h2>Classifica generale</h2><table><thead><tr><th>Pos</th><th class="l">Squadra</th><th>PT</th><th>G</th><th>V</th><th>N</th><th>P</th><th>GF</th><th>GS</th><th>DR</th></tr></thead><tbody>`;
+  arr.forEach((x,i)=>{ h += `<tr class="${i<4?'q':'e'} ${x.nome===ME?'me':''}"><td><b>${i+1}</b></td><td class="l">${esc(x.nome)}</td><td style="color:#60a5fa"><b>${x.pt}</b></td><td>${x.g}</td><td>${x.v}</td><td>${x.n}</td><td>${x.p}</td><td>${x.gf}</td><td>${x.gs}</td><td class="${x.dr>0?'pos':x.dr<0?'neg':''}"><b>${x.dr>0?'+'+x.dr:x.dr}</b></td></tr>`; });
+  h += `</tbody></table>
+  <div class="legend"><div><i style="background:#14532d"></i>Qualificate alle semifinali (1°-4°)</div><div style="margin-top:4px"><i style="background:#7f1d1d"></i>Eliminate / finalina</div>
+  <div style="margin-top:4px">Ordine: punti, differenza reti, gol fatti.</div></div>`;
+  view.innerHTML = h;
+}
+
+/* ================= IMPEGNI ================= */
+let imp = [], impIdx = 0, impToday = 0;
+function buildImpegni(){
+  imp = [];
+  const end = new Date(2026,11,12); const cur = new Date(2026,9,13);
+  while(cur <= end){
+    const s = fmtDate(cur), dn = DAYS[cur.getDay()], tt = cur.getDay()===2 || cur.getDay()===4;
+    const sm = matches.filter(m => effDate(m)===s && isSam(m));
+    if(sm.length){ sm.forEach(m => imp.push({d:new Date(cur),title:dn+' '+s,type:'Campionato',cls:'Campionato',detail:`Vs ${m.home===ME?m.away:m.home} (${m.time})`,id:m.id})); }
+    else if(tt){ imp.push({d:new Date(cur),title:dn+' '+s,type:'Allenamento',cls:'Allenamento',detail:'Sessione standard'}); }
+    cur.setDate(cur.getDate()+1);
+  }
+  imp.push({d:new Date(2026,11,10),title:'Giovedì 10/12/2026',type:'Fasi Finali',cls:'Fasi',detail:'Semifinali (se qualificati)'});
+  imp.push({d:new Date(2026,11,12),title:'Sabato 12/12/2026',type:'Fasi Finali',cls:'Fasi',detail:'Finali / Finalina'});
+  imp.sort((a,b)=>a.d-b.d);
+  const today = new Date(); today.setHours(0,0,0,0);
+  impToday = imp.findIndex(x => x.d >= today); if(impToday<0) impToday = imp.length-1;
+  impIdx = impToday;
+}
+function vImpegni(){
+  buildImpegni();
+  let h = `<h2 style="color:#4ade80">Impegni ${ME}</h2>
+  <div class="card"><div class="small ctr" id="sl-title" style="text-transform:uppercase;letter-spacing:.05em"></div>
+  <div class="row between" style="margin-top:8px">
+    <button class="btn" id="sl-prev" onclick="moveSl(-1)">⬅️</button>
+    <div class="ctr" style="flex:1;min-width:0;padding:0 6px"><div id="sl-a" class="small"></div><div id="sl-b" style="font-size:18px;font-weight:700;margin:3px 0"></div><div id="sl-c" style="font-size:14px;font-weight:600"></div>
+      <div id="sl-link" style="margin-top:6px"></div></div>
+    <button class="btn" id="sl-next" onclick="moveSl(1)">➡️</button>
+  </div>
+  <div class="ctr" style="margin-top:10px" id="sl-today"><button class="btn primary sm" onclick="impIdx=impToday;updSl()">Torna a oggi</button></div></div>
+  <h3>Calendario completo</h3>`;
+  imp.forEach((x,i)=>{ h += `<div class="imp ${x.cls} ${i<impToday?'past':''}"><div><div class="small" style="color:#d1d5db">${x.title}</div><b>${x.type}</b></div><div style="text-align:right;font-size:14px;font-weight:600">${x.detail}${x.id?`<div><a class="btn sm" style="margin-top:4px" href="#/partita/${x.id}">👥 Presenze</a></div>`:''}</div></div>`; });
+  view.innerHTML = h; updSl();
+}
+function moveSl(d){ impIdx = Math.min(imp.length-1, Math.max(0, impIdx+d)); updSl(); }
+function updSl(){
+  const x = imp[impIdx];
+  document.getElementById('sl-a').textContent = x.title;
+  const b = document.getElementById('sl-b'); b.textContent = x.type; b.style.color = x.cls==='Campionato'?'#93c5fd':x.cls==='Allenamento'?'#86efac':'#fde047';
+  document.getElementById('sl-c').textContent = x.detail;
+  document.getElementById('sl-link').innerHTML = x.id ? `<a class="btn primary sm" href="#/partita/${x.id}">👥 Presenze e formazione</a>` : '';
+  document.getElementById('sl-prev').disabled = impIdx===0; document.getElementById('sl-next').disabled = impIdx===imp.length-1;
+  document.getElementById('sl-title').textContent = impIdx===impToday ? 'Prossimo impegno' : impIdx<impToday ? 'Impegno passato' : 'Impegno futuro';
+  document.getElementById('sl-today').style.display = impIdx===impToday ? 'none' : 'block';
+}
+
+/* ================= PAGINA PARTITA ================= */
+const FORMATIONS = {
+  '1-2-1': [['P',50,89],['D',50,67],['E',20,45],['E',80,45],['A',50,19]],
+  '2-2':   [['P',50,89],['D',26,66],['D',74,66],['A',26,30],['A',74,30]],
+  '3-1':   [['P',50,89],['D',16,66],['D',50,70],['D',84,66],['A',50,25]]
+};
+let sel = null, curMatch = null;
+function present(id){ const a = app.att[id]||{}; return app.players.filter(p => a[p.id]); }
+function getLineup(id){
+  const L = app.lineup[id] || (app.lineup[id] = {f:'1-2-1', slots:[null,null,null,null,null]});
+  const ok = new Set(present(id).map(p=>p.id));
+  L.slots = L.slots.map(s => s && ok.has(s) ? s : null);
+  return L;
+}
+const pById = id => app.players.find(p => p.id===id);
+const shirtTxt = p => p.num ? esc(p.num) : esc(p.name.trim().charAt(0).toUpperCase());
+const firstName = p => esc(p.name.trim().split(/\s+/)[0]);
+
+function vPartita(id, noFetch){
+  const m = matches.find(x=>x.id===id);
+  if(!m || !isSam(m)){ location.hash = '#/calendario'; return; }
+  curMatch = id;
+  const idx = matches.indexOf(m);
+  const sam = ''; 
+  let h = `<div class="row between" style="margin-bottom:8px"><a class="btn sm" href="#/calendario">← Indietro</a><span class="small">${m.newDate?`<span class="old">${m.date}</span><span class="new">${m.newDate}</span>`:m.date} · ${m.time}</span></div>
+  <div class="card"><div class="teams" style="margin-top:0">
+    <div class="t h">${esc(m.home)}</div>
+    <div class="row" style="padding:0 8px">
+      <input class="score" type="number" min="0" inputmode="numeric" value="${m.s1}" onchange="setScore(${idx},'s1',this.value)">
+      <span class="dash">-</span>
+      <input class="score" type="number" min="0" inputmode="numeric" value="${m.s2}" onchange="setScore(${idx},'s2',this.value)">
+    </div><div class="t">${esc(m.away)}</div></div></div>`;
+  if(!app.players.length){
+    h += `<div class="card empty-msg">Non hai ancora inserito i bambini.<br><br><a class="btn primary" href="#/rosa">Vai alla Rosa e aggiungili</a></div>`;
+    view.innerHTML = h; return;
+  }
+  const pres = present(id);
+  const ready = fbReady();
+  let sum = '';
+  if(ready){
+    let si=0,no=0,nr=0; app.players.forEach(p=>{ const v=rsvpOf(p,id); if(v==='si')si++; else if(v==='no')no++; else nr++; });
+    sum = `<div class="sum">👪 Risposte dei genitori: <b style="color:#86efac">${si} sì</b> · <b style="color:#fca5a5">${no} no</b> · ${nr} senza risposta</div>
+    <div class="row" style="margin-bottom:8px;flex-wrap:wrap"><button class="btn sm" onclick="refreshRsvp(true)">🔄 Aggiorna risposte</button>
+    <button class="btn sm" onclick="applyRsvp()">Segna presenti chi ha risposto "Ci sarà"</button></div>`;
+  }
+  h += `<h3>Presenze · <span id="pc">${pres.length}</span>/${app.players.length}</h3>${sum}
+  <div class="row" style="margin-bottom:8px"><button class="btn sm" onclick="allAtt(true)">Tutti presenti</button><button class="btn sm" onclick="allAtt(false)">Nessuno</button></div>`;
+  app.players.forEach(p => {
+    const on = !!(app.att[id]||{})[p.id];
+    const v = ready ? rsvpOf(p,id) : null;
+    const tag = !ready ? '' : v==='si' ? '<div><span class="tag si">👪 Ci sarà</span></div>' : v==='no' ? '<div><span class="tag no">👪 Non ci sarà</span></div>' : '<div><span class="tag nr">👪 nessuna risposta</span></div>';
+    h += `<div class="att ${on?'on':''}" onclick="toggleAtt('${p.id}')"><div><div>${p.num?`<span class="num">${esc(p.num)}</span>`:''}<span class="nm">${esc(p.name)}</span></div>${tag}</div><span class="st">${on?'✓ Presente':'Assente'}</span></div>`;
+  });
+  h += `<h3>Formazione · calcio a 5</h3><div id="lineup"></div>`;
+  view.innerHTML = h;
+  renderLineup();
+  if(ready && !noFetch) refreshRsvp(false);
+}
+function toggleAtt(pid){
+  const a = app.att[curMatch] || (app.att[curMatch] = {});
+  if(a[pid]) delete a[pid]; else a[pid] = true;
+  saveA(); const y = window.scrollY; vPartita(curMatch,true); window.scrollTo(0,y);
+}
+function allAtt(v){
+  app.att[curMatch] = {}; if(v) app.players.forEach(p => app.att[curMatch][p.id] = true);
+  saveA(); const y = window.scrollY; vPartita(curMatch,true); window.scrollTo(0,y);
+}
+function pitchSvg(){
+  return `<svg viewBox="0 0 200 300" preserveAspectRatio="none">
+  <defs><pattern id="g" width="200" height="50" patternUnits="userSpaceOnUse"><rect width="200" height="25" fill="#15803d"/><rect y="25" width="200" height="25" fill="#16a34a"/></pattern></defs>
+  <rect width="200" height="300" fill="url(#g)"/>
+  <g fill="none" stroke="#ffffffcc" stroke-width="2">
+    <rect x="8" y="8" width="184" height="284"/>
+    <line x1="8" y1="150" x2="192" y2="150"/>
+    <circle cx="100" cy="150" r="28"/>
+    <path d="M52 8 A48 48 0 0 0 148 8"/><path d="M52 292 A48 48 0 0 1 148 292"/>
+    <rect x="80" y="2" width="40" height="6"/><rect x="80" y="292" width="40" height="6"/>
+  </g>
+  <circle cx="100" cy="150" r="3" fill="#ffffffcc"/>
+  <circle cx="100" cy="60" r="2.5" fill="#ffffffcc"/><circle cx="100" cy="240" r="2.5" fill="#ffffffcc"/>
+  </svg>`;
+}
+function renderLineup(){
+  const L = getLineup(curMatch), pos = FORMATIONS[L.f];
+  const placed = new Set(L.slots.filter(Boolean));
+  const bench = present(curMatch).filter(p => !placed.has(p.id));
+  const selSlotFilled = sel && sel.kind==='slot' && L.slots[sel.val];
+  let h = `<div class="chips" style="justify-content:center">${Object.keys(FORMATIONS).map(f=>`<span class="chip ${f===L.f?'on':''}" onclick="setForm('${f}')">${f}</span>`).join('')}</div>
+  <div class="pitchbox"><div class="pitch">${pitchSvg()}`;
+  pos.forEach(([role,x,y],i)=>{
+    const p = L.slots[i] ? pById(L.slots[i]) : null;
+    const isSel = sel && sel.kind==='slot' && sel.val===i;
+    h += `<button class="slot ${role==='P'?'gk':''} ${p?'':'empty'} ${isSel?'sel':''}" style="left:${x}%;top:${y}%" onclick="pick('slot',${i})">
+      <span class="shirt">${p?shirtTxt(p):(role==='P'?'GK':role)}</span>${p?`<span class="lbl">${firstName(p)}</span>`:''}</button>`;
+  });
+  h += `</div></div>
+  <div class="hint">${sel ? 'Ora tocca un altro punto per spostare o scambiare.' : 'Tocca un bambino e poi la posizione dove metterlo (o un altro bambino per scambiarli).'}</div>
+  <div class="row" style="justify-content:center;margin-bottom:6px;flex-wrap:wrap">
+    <button class="btn sm" onclick="autoFill()">⚡ Riempi in automatico</button>
+    <button class="btn sm" onclick="clearField()">Svuota campo</button>
+    ${selSlotFilled?`<button class="btn sm danger" onclick="removeSel()">Togli dal campo</button>`:''}
+  </div>
+  <h3>Panchina (${bench.length})</h3>`;
+  if(!present(curMatch).length) h += `<div class="small">Segna prima chi è presente.</div>`;
+  else if(!bench.length) h += `<div class="small">Nessuno in panchina.</div>`;
+  else h += `<div class="bench">${bench.map(p=>`<button class="bchip ${sel&&sel.kind==='bench'&&sel.val===p.id?'sel':''}" onclick="pick('bench','${p.id}')">${p.num?esc(p.num)+' · ':''}${esc(p.name)}</button>`).join('')}</div>`;
+  document.getElementById('lineup').innerHTML = h;
+}
+function pick(kind,val){
+  const L = getLineup(curMatch), b = {kind,val};
+  if(!sel) sel = b;
+  else if(sel.kind===kind && sel.val===val) sel = null;
+  else {
+    const a = sel;
+    if(a.kind==='slot' && b.kind==='slot'){ const t=L.slots[a.val]; L.slots[a.val]=L.slots[b.val]; L.slots[b.val]=t; sel=null; }
+    else if(a.kind==='slot' && b.kind==='bench'){ L.slots[a.val]=b.val; sel=null; }
+    else if(a.kind==='bench' && b.kind==='slot'){ L.slots[b.val]=a.val; sel=null; }
+    else sel = b;
+    saveA();
+  }
+  renderLineup();
+}
+function setForm(f){ getLineup(curMatch).f = f; saveA(); sel=null; renderLineup(); }
+function removeSel(){ const L=getLineup(curMatch); if(sel&&sel.kind==='slot'){ L.slots[sel.val]=null; saveA(); } sel=null; renderLineup(); }
+function clearField(){ const L=getLineup(curMatch); L.slots=[null,null,null,null,null]; saveA(); sel=null; renderLineup(); }
+function autoFill(){ const L=getLineup(curMatch); const ids=present(curMatch).map(p=>p.id); L.slots=[0,1,2,3,4].map(i=>ids[i]||null); saveA(); sel=null; renderLineup(); }
+
+/* ================= FIREBASE (risposte genitori) ================= */
+const LS_F = 'winterCupFb';
+const fbCfg = () => load(LS_F) || {};
+const fbBase = () => (fbCfg().db||'').replace(/\/+$/,'');
+function fbReady(){ const c = fbCfg(); return !!(c.db && c.apiKey && c.email && c.password); }
+let fbTok = null, fbTokExp = 0, rsvpCache = {};
+async function fbAuth(force){
+  if(!force && fbTok && Date.now() < fbTokExp) return fbTok;
+  const c = fbCfg();
+  const r = await fetch(`${c.authBase||'https://identitytoolkit.googleapis.com'}/v1/accounts:signInWithPassword?key=${encodeURIComponent(c.apiKey)}`,
+    {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:c.email,password:c.password,returnSecureToken:true})});
+  const d = await r.json();
+  if(!r.ok) throw new Error((d.error && d.error.message) || 'Accesso non riuscito');
+  fbTok = d.idToken; fbTokExp = Date.now() + 50*60*1000; return fbTok;
+}
+async function fbReq(method, path, body){
+  for(let attempt=0; attempt<2; attempt++){
+    const t = await fbAuth(attempt===1);
+    const r = await fetch(`${fbBase()}/${path}.json?auth=${encodeURIComponent(t)}`, {method, body: body===undefined?undefined:JSON.stringify(body)});
+    if(r.status===401 && attempt===0) continue;
+    if(!r.ok) throw new Error('Errore database ('+r.status+')');
+    return r.json();
+  }
+}
+const rsvpOf = (p,mid) => p.token && rsvpCache[p.token] ? rsvpCache[p.token][mid] : undefined;
+async function refreshRsvp(manual){
+  try{
+    rsvpCache = (await fbReq('GET','rsvp')) || {};
+    if(location.hash.indexOf('#/partita/')===0){ const y=window.scrollY; vPartita(curMatch,true); window.scrollTo(0,y); }
+  }catch(e){ if(manual) alert('Non riesco a leggere le risposte: '+e.message); }
+}
+function applyRsvp(){
+  const a = app.att[curMatch] = app.att[curMatch] || {};
+  app.players.forEach(p => { if(rsvpOf(p,curMatch)==='si') a[p.id] = true; });
+  saveA(); const y=window.scrollY; vPartita(curMatch,true); window.scrollTo(0,y);
+}
+function newToken(){ const b=new Uint8Array(15); crypto.getRandomValues(b); return Array.from(b,x=>'abcdefghijkmnpqrstuvwxyz23456789'[x%32]).join(''); }
+function ensureTokens(){ let ch=false; app.players.forEach(p=>{ if(!p.token){ p.token=newToken(); ch=true; } }); if(ch) saveA(); }
+async function publishFamilies(){
+  ensureTokens();
+  const mo = {}; matches.filter(isSam).forEach(m => mo[m.id] = {home:m.home, away:m.away, date:effDate(m), time:m.time});
+  const fam = {}; app.players.forEach(p => fam[p.token] = {name:p.name, matches:mo});
+  await fbReq('PATCH','families',fam);
+}
+async function autoPublish(){ if(fbReady() && app.players.length){ try{ await publishFamilies(); }catch(e){} } }
+function parentLink(p){
+  const base = location.href.split('#')[0].split('?')[0].replace(/[^\/]*$/,'');
+  return `${base}genitori.html?d=${encodeURIComponent(fbBase())}&f=${p.token}`;
+}
+function fbSection(){
+  const c = fbCfg();
+  let h = `<h3>Presenze dei genitori (Firebase)</h3><div class="card">
+  <div class="small">Collega il database per far segnare ai genitori la presenza con un link personale. Guida: file SETUP_FIREBASE.md.</div>
+  <label class="f">Database URL</label><input type="text" id="fb-db" value="${esc(c.db||'')}" placeholder="https://xxxx-default-rtdb.europe-west1.firebasedatabase.app" autocapitalize="off">
+  <label class="f">Web API Key</label><input type="text" id="fb-key" value="${esc(c.apiKey||'')}" autocapitalize="off">
+  <label class="f">Email allenatore</label><input type="text" id="fb-mail" value="${esc(c.email||'')}" autocapitalize="off">
+  <label class="f">Password</label><input type="password" id="fb-pw" value="${esc(c.password||'')}" style="background:var(--card2);border:1px solid #4b5563;border-radius:8px;color:var(--txt);padding:9px;font-size:15px;width:100%">
+  <div class="stack" style="margin-top:12px"><button class="btn primary" style="width:100%" onclick="fbSave()">Salva e verifica</button></div>
+  <div class="status" id="fb-status"></div></div>`;
+  if(fbReady()){
+    h += `<div class="card"><div class="stack"><button class="btn primary" style="width:100%" onclick="fbPublish()">📤 Pubblica partite e bambini per i genitori</button></div>
+    <div class="small">Premi dopo aver aggiunto bambini o cambiato date. I cambi di data da "Rimanda" si pubblicano da soli.</div><div class="status" id="fb-pub"></div></div>`;
+    if(!app.players.length) h += `<div class="small">Aggiungi prima i bambini nella Rosa.</div>`;
+    else {
+      ensureTokens();
+      h += `<h3>Link personali</h3><div class="card">`;
+      app.players.forEach(p => {
+        const link = parentLink(p);
+        const wa = 'https://wa.me/?text=' + encodeURIComponent(`Ciao! Qui puoi segnare la presenza di ${p.name} alle partite Winter Cup (Sam 89). Puoi cambiare risposta quando vuoi: ${link}`);
+        h += `<div class="linkrow"><b>${esc(p.name)}</b><div class="row"><button class="btn sm" onclick="copyLink('${p.id}')">Copia</button><a class="btn sm primary" target="_blank" rel="noopener" href="${wa}">WhatsApp</a></div></div>`;
+      });
+      h += `</div>`;
+    }
+  }
+  return h;
+}
+async function fbSave(){
+  const st = document.getElementById('fb-status');
+  const c = {db:document.getElementById('fb-db').value.trim().replace(/\/+$/,''), apiKey:document.getElementById('fb-key').value.trim(),
+    email:document.getElementById('fb-mail').value.trim(), password:document.getElementById('fb-pw').value};
+  const old = fbCfg(); if(old.authBase) c.authBase = old.authBase;
+  localStorage.setItem(LS_F, JSON.stringify(c)); fbTok = null;
+  st.className='status'; st.textContent='Verifico…';
+  try{ await fbReq('GET','families'); st.className='status ok'; st.textContent='✓ Collegato. Ora pubblica i bambini e le partite.'; setTimeout(vRosa,900); }
+  catch(e){ st.className='status ko'; st.textContent='✗ '+e.message; }
+}
+async function fbPublish(){
+  const st = document.getElementById('fb-pub'); st.className='status'; st.textContent='Pubblico…';
+  try{ await publishFamilies(); st.className='status ok'; st.textContent='✓ Pubblicato.'; }catch(e){ st.className='status ko'; st.textContent='✗ '+e.message; }
+}
+async function copyLink(id){
+  const link = parentLink(pById(id));
+  try{ await navigator.clipboard.writeText(link); alert('Link copiato'); }catch(e){ prompt('Copia il link:', link); }
+}
+
+/* ================= ROSA ================= */
+function uid(){ return 'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function vRosa(){
+  const recorded = matches.filter(m => isSam(m) && app.att[m.id]);
+  let h = `<h2>Rosa ${ME}</h2>
+  <div class="card stack"><div class="row"><input type="text" id="np-name" placeholder="Nome del bambino" style="flex:1" onkeydown="if(event.key==='Enter')addPlayer()"><input type="number" id="np-num" placeholder="N°" inputmode="numeric" style="width:70px"></div>
+  <button class="btn primary" style="width:100%" onclick="addPlayer()">+ Aggiungi</button>
+  <details><summary class="small" style="cursor:pointer">Aggiungi più bambini in una volta</summary>
+    <textarea id="np-bulk" rows="5" placeholder="Un nome per riga" style="margin:8px 0"></textarea>
+    <button class="btn" style="width:100%" onclick="addBulk()">Aggiungi elenco</button></details></div>
+  <h3>Giocatori (${app.players.length}) · presenze su ${recorded.length} partite registrate</h3>`;
+  if(!app.players.length) h += `<div class="empty-msg">Nessun bambino inserito.</div>`;
+  app.players.forEach(p => {
+    const n = recorded.filter(m => app.att[m.id][p.id]).length;
+    const pct = recorded.length ? Math.round(n/recorded.length*100) : 0;
+    h += `<div class="card"><div class="row between"><div>${p.num?`<span class="num">${esc(p.num)}</span>`:''}<b>${esc(p.name)}</b></div>
+      <div class="row"><button class="btn sm" onclick="editPlayer('${p.id}')">✏️</button><button class="btn sm danger" onclick="delPlayer('${p.id}')">🗑</button></div></div>
+      <div class="small" style="margin-top:6px">Presenze: ${n}/${recorded.length}</div><div class="bar"><div style="width:${pct}%"></div></div></div>`;
+  });
+  h += fbSection();
+  h += `<h3>Backup dati</h3><div class="card stack"><div class="small">I dati sono salvati su questo dispositivo. Esporta un backup per non perderli o per portarli su un altro telefono.</div>
+  <button class="btn" style="width:100%" onclick="exportData()">⬇️ Esporta backup</button>
+  <button class="btn" style="width:100%" onclick="document.getElementById('imp-file').click()">⬆️ Importa backup</button>
+  <input type="file" id="imp-file" accept=".json,application/json" style="display:none" onchange="importData(this.files[0])"></div>`;
+  view.innerHTML = h;
+}
+function addPlayer(){
+  const n = document.getElementById('np-name').value.trim(); if(!n) return;
+  app.players.push({id:uid(), name:n, num:document.getElementById('np-num').value.trim()}); saveA(); vRosa();
+  document.getElementById('np-name').focus();
+}
+function addBulk(){
+  document.getElementById('np-bulk').value.split('\n').map(s=>s.trim()).filter(Boolean).forEach(n=>app.players.push({id:uid(),name:n,num:''}));
+  saveA(); vRosa();
+}
+function editPlayer(id){
+  const p = pById(id); const n = prompt('Nome', p.name); if(n===null) return;
+  const num = prompt('Numero maglia (lascia vuoto per nessuno)', p.num||''); if(num===null) return;
+  if(n.trim()) p.name = n.trim(); p.num = num.trim(); saveA(); vRosa();
+}
+function delPlayer(id){
+  const p = pById(id); if(!confirm(`Eliminare ${p.name}? Verrà tolto anche dalle presenze e dalle formazioni.`)) return;
+  app.players = app.players.filter(x=>x.id!==id);
+  Object.values(app.att).forEach(a => delete a[id]);
+  Object.values(app.lineup).forEach(L => L.slots = L.slots.map(s => s===id?null:s));
+  if(p.token && fbReady()){ fbReq('DELETE','families/'+p.token).catch(()=>{}); fbReq('DELETE','rsvp/'+p.token).catch(()=>{}); }
+  saveA(); vRosa();
+}
+function exportData(){
+  const blob = new Blob([JSON.stringify({v:1,matches,app},null,1)],{type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'winter-cup-backup-'+new Date().toISOString().slice(0,10)+'.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+function importData(f){
+  if(!f) return; const r = new FileReader();
+  r.onload = () => { try{
+    const d = JSON.parse(r.result);
+    if(!Array.isArray(d.matches) || !d.app || !Array.isArray(d.app.players)) throw 0;
+    if(!confirm('Sostituire i dati attuali con quelli del backup?')) return;
+    matches = d.matches; app = d.app; app.att=app.att||{}; app.lineup=app.lineup||{}; saveM(); saveA(); route();
+  }catch(e){ alert('File di backup non valido.'); } };
+  r.readAsText(f);
+}
+
+route();
+</script>
+</body>
+</html>

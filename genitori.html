@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>Presenza partite – Sam 89</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:#111827;color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+header{background:#1f2937;border-bottom:1px solid #374151;padding:14px 16px;text-align:center}
+header h1{margin:0;font-size:18px}
+main{max-width:520px;margin:0 auto;padding:16px 12px 40px}
+.hello{text-align:center;margin:6px 0 16px;font-size:17px}
+.hello b{color:#60a5fa}
+.card{background:#1f2937;border:1px solid #374151;border-radius:12px;padding:14px;margin-bottom:12px}
+.when{font-size:13px;color:#9ca3af}
+.vs{font-size:17px;font-weight:700;margin:6px 0 12px}
+.btns{display:flex;gap:8px}
+.b{flex:1;padding:14px 6px;border-radius:10px;border:2px solid #4b5563;background:#374151;color:#f3f4f6;font-size:16px;font-weight:700;cursor:pointer}
+.b:active{opacity:.7}
+.b.si.on{background:#15803d;border-color:#22c55e}
+.b.no.on{background:#b91c1c;border-color:#ef4444}
+.msg{text-align:center;color:#9ca3af;padding:30px 10px}
+.err{color:#fca5a5}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#065f46;color:#fff;padding:10px 18px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none}
+.toast.on{opacity:1}
+.toast.bad{background:#991b1b}
+.foot{text-align:center;font-size:12px;color:#6b7280;margin-top:18px}
+</style>
+</head>
+<body>
+<header><h1>⚽ Winter Cup 2026 · Sam 89</h1></header>
+<main id="main"><div class="msg">Caricamento…</div></main>
+<div class="toast" id="toast"></div>
+<script>
+const q = new URLSearchParams(location.search);
+const DB = (q.get('d')||'').replace(/\/+$/,'');
+const TOK = q.get('f')||'';
+const main = document.getElementById('main');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let fam = null, rsvp = {};
+
+function toast(t,bad){ const e=document.getElementById('toast'); e.textContent=t; e.className='toast on'+(bad?' bad':''); setTimeout(()=>e.className='toast'+(bad?' bad':''),2200); }
+function parseD(s){ const p=(s||'').split('/'); return p.length===3 ? new Date(+p[2],+p[1]-1,+p[0]) : null; }
+const DAYS = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+
+async function init(){
+  if(!/^https:\/\//.test(DB) && !/^http:\/\/localhost/.test(DB) || !/^[A-Za-z0-9_-]{12,}$/.test(TOK)){
+    main.innerHTML = '<div class="msg err">Link non valido. Chiedi di nuovo il link all\'allenatore.</div>'; return;
+  }
+  try{
+    const r = await fetch(`${DB}/families/${TOK}.json`); if(!r.ok) throw 0;
+    fam = await r.json();
+    if(!fam){ main.innerHTML = '<div class="msg err">Link non valido o non più attivo. Chiedi di nuovo il link all\'allenatore.</div>'; return; }
+    await loadRsvp(); render();
+  }catch(e){ main.innerHTML = '<div class="msg err">Impossibile collegarsi. Controlla la connessione e riprova.</div>'; }
+}
+async function loadRsvp(){ const r = await fetch(`${DB}/rsvp/${TOK}.json`); rsvp = (r.ok && await r.json()) || {}; }
+
+function render(){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const ms = Object.entries(fam.matches||{}).map(([id,m])=>({id,...m,d:parseD(m.date)}))
+    .filter(m => m.d && m.d >= today).sort((a,b)=>a.d-b.d || String(a.time).localeCompare(String(b.time)));
+  let h = `<div class="hello">Presenza di <b>${esc(fam.name)}</b></div>`;
+  if(!ms.length) h += '<div class="msg">Non ci sono partite in programma.</div>';
+  ms.forEach(m => {
+    const v = rsvp[m.id];
+    h += `<div class="card"><div class="when">${DAYS[m.d.getDay()]} ${esc(m.date)} · ore ${esc(m.time)}</div>
+      <div class="vs">${esc(m.home)} <span style="color:#6b7280">vs</span> ${esc(m.away)}</div>
+      <div class="btns"><button class="b si ${v==='si'?'on':''}" onclick="set('${m.id}','si')">✅ Ci sarà</button>
+      <button class="b no ${v==='no'?'on':''}" onclick="set('${m.id}','no')">❌ Non ci sarà</button></div></div>`;
+  });
+  h += '<div class="foot">Puoi cambiare risposta in qualsiasi momento.</div>';
+  main.innerHTML = h;
+}
+async function set(id,v){
+  const prev = rsvp[id]; rsvp[id] = v; render();
+  try{
+    const r = await fetch(`${DB}/rsvp/${TOK}/${id}.json`,{method:'PUT',body:JSON.stringify(v)});
+    if(!r.ok) throw 0; toast('Risposta salvata ✓');
+  }catch(e){ if(prev) rsvp[id]=prev; else delete rsvp[id]; render(); toast('Non salvato, riprova',true); }
+}
+init();
+</script>
+</body>
+</html>
