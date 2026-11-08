@@ -86,6 +86,8 @@ tr.me td.l{color:#93c5fd;font-weight:700}
 .bar>div{height:100%;background:#22c55e}
 .empty-msg{text-align:center;color:var(--mut);padding:24px 8px}
 .ctr{text-align:center}
+.nextcard{border:2px solid #3b82f6!important;box-shadow:0 0 0 4px #3b82f633;padding:14px 12px;margin-bottom:16px}
+.nlab{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#60a5fa;margin-bottom:6px}
 .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;margin-top:4px}
 .tag.si{background:#14532d;color:#86efac}.tag.no{background:#7f1d1d;color:#fca5a5}.tag.nr{background:#374151;color:#9ca3af}
 .sum{font-size:13px;color:var(--mut);margin:0 0 8px}
@@ -195,36 +197,47 @@ window.addEventListener('hashchange', route);
 let calFilter = 'all';
 function setFilter(f){ calFilter = f; vCalendario(true); }
 function presentCount(id){ const a = app.att[id]; return a ? Object.keys(a).length : null; }
-function vCalendario(noFetch){
-  let h = `<h2>Risultati e Calendario</h2>
-  <div class="chips"><span class="chip ${calFilter==='all'?'on':''}" onclick="setFilter('all')">Tutte</span>
-  <span class="chip ${calFilter==='sam'?'on':''}" onclick="setFilter('sam')">Solo ${ME}</span></div>`;
-  matches.filter(m => calFilter==='all' || isSam(m)).forEach(m => {
-    const idx = matches.indexOf(m);
-    const dt = m.newDate ? `<span class="old">${m.date}</span><span class="new">${m.newDate}</span>` : m.date;
-    const pc = presentCount(m.id);
-    const dd = parseDate(effDate(m)), tdy = new Date(); tdy.setHours(0,0,0,0);
-    let rs = '';
-    if(isSam(m) && fbReady() && app.players.length && dd && dd >= tdy){
-      let si=0,no=0,nr=0; app.players.forEach(p=>{ const v=rsvpOf(p,m.id); if(v==='si')si++; else if(v==='no')no++; else nr++; });
-      rs = `<div class="ctr small" style="margin-top:8px">👪 <b style="color:#86efac">${si} sì</b> · <b style="color:#fca5a5">${no} no</b> · ${nr} da rispondere<br>${si>=MIN?'<b style="color:#4ade80">✅ minimo raggiunto</b>':`<b style="color:#fbbf24">⏳ mancano ${MIN-si} per il minimo di ${MIN}</b>`}</div>`;
-    }
-    h += `<div class="card ${isSam(m)?'sam':''}">
-      <div class="row between small"><div>${dt} · ${m.time}</div>
-        <button class="btn sm" onclick="openModal(${m.id})">🔄 Rimanda</button></div>
-      <div class="teams">
-        <div class="t h">${esc(m.home)}</div>
-        <div class="row" style="padding:0 8px">
-          <input class="score" type="number" min="0" inputmode="numeric" value="${m.s1}" onchange="setScore(${idx},'s1',this.value)">
-          <span class="dash">-</span>
-          <input class="score" type="number" min="0" inputmode="numeric" value="${m.s2}" onchange="setScore(${idx},'s2',this.value)">
-        </div>
-        <div class="t">${esc(m.away)}</div>
+const sortKey = m => { const d = parseDate(effDate(m)); return (d ? d.getTime() : 0) + (parseInt((m.time||'0:0').replace(':','')) || 0); };
+function calCard(m, big){
+  const idx = matches.indexOf(m);
+  const dt = m.newDate ? `<span class="old">${m.date}</span><span class="new">${m.newDate}</span>` : m.date;
+  const pc = presentCount(m.id);
+  const dd = parseDate(effDate(m)), tdy = new Date(); tdy.setHours(0,0,0,0);
+  let rs = '';
+  if(isSam(m) && fbReady() && app.players.length && dd && dd >= tdy){
+    let si=0,no=0,nr=0; app.players.forEach(p=>{ const v=rsvpOf(p,m.id); if(v==='si')si++; else if(v==='no')no++; else nr++; });
+    rs = `<div class="ctr small" style="margin-top:8px">👪 <b style="color:#86efac">${si} sì</b> · <b style="color:#fca5a5">${no} no</b> · ${nr} da rispondere<br>${si>=MIN?'<b style="color:#4ade80">✅ minimo raggiunto</b>':`<b style="color:#fbbf24">⏳ mancano ${MIN-si} per il minimo di ${MIN}</b>`}</div>`;
+  }
+  return `<div class="card ${isSam(m)?'sam':''} ${big?'nextcard':''}">
+    ${big?'<div class="nlab">Prossimo impegno</div>':''}
+    <div class="row between small"><div>${dt} · ${m.time}</div>
+      <button class="btn sm" onclick="openModal(${m.id})">🔄 Rimanda</button></div>
+    <div class="teams">
+      <div class="t h">${esc(m.home)}</div>
+      <div class="row" style="padding:0 8px">
+        <input class="score" type="number" min="0" inputmode="numeric" value="${m.s1}" onchange="setScore(${idx},'s1',this.value)">
+        <span class="dash">-</span>
+        <input class="score" type="number" min="0" inputmode="numeric" value="${m.s2}" onchange="setScore(${idx},'s2',this.value)">
       </div>
-      ${rs}
-      ${isSam(m) ? `<div style="margin-top:10px" class="ctr"><a class="btn primary sm" href="#/partita/${m.id}">👥 Presenze e formazione${pc!==null?` · ${pc} present${pc===1?'e':'i'}`:''}</a></div>` : ''}
-    </div>`;
-  });
+      <div class="t">${esc(m.away)}</div>
+    </div>
+    ${rs}
+    ${isSam(m) ? `<div style="margin-top:10px" class="ctr"><a class="btn primary sm" href="#/partita/${m.id}">👥 Presenze e formazione${pc!==null?` · ${pc} present${pc===1?'e':'i'}`:''}</a></div>` : ''}
+  </div>`;
+}
+function vCalendario(noFetch){
+  const tdy = new Date(); tdy.setHours(0,0,0,0);
+  const isUp = m => { const d = parseDate(effDate(m)); return d && d >= tdy; };
+  const nextM = matches.filter(m => isSam(m) && isUp(m)).sort((a,b) => sortKey(a)-sortKey(b))[0];
+  const flt = m => m !== nextM && (calFilter==='all' || isSam(m));
+  const up = matches.filter(m => isUp(m) && flt(m)).sort((a,b) => sortKey(a)-sortKey(b));
+  const past = matches.filter(m => !isUp(m) && flt(m)).sort((a,b) => sortKey(b)-sortKey(a));
+  let h = `<h2>Risultati e Calendario</h2>`;
+  if(nextM) h += calCard(nextM, true);
+  h += `<div class="chips"><span class="chip ${calFilter==='all'?'on':''}" onclick="setFilter('all')">Tutte</span>
+  <span class="chip ${calFilter==='sam'?'on':''}" onclick="setFilter('sam')">Solo ${ME}</span></div>`;
+  if(up.length) h += `<h3>Prossime partite</h3>` + up.map(m => calCard(m,false)).join('');
+  if(past.length) h += `<h3>Già giocate · risultati</h3>` + past.map(m => calCard(m,false)).join('');
   view.innerHTML = h;
   if(fbReady() && !noFetch) refreshRsvp(false);
 }

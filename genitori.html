@@ -73,6 +73,8 @@ tr.q{background:#14532d44}tr.e{background:#7f1d1d44}tr.me td.l{color:#93c5fd;fon
 .pop .cc{background:#374151}
 .min{font-size:14px;margin:0 0 12px;padding:8px 10px;border-radius:8px;font-weight:600}
 .min.ok{background:#14532d88;color:#4ade80}.min.wait{background:#78350f88;color:#fbbf24}
+.sec{font-size:14px;font-weight:700;color:#9ca3af;margin:14px 2px 8px}
+.next .res{margin-top:10px}
 .foot{text-align:center;font-size:12px;color:#6b7280;margin-top:18px}
 </style>
 </head>
@@ -159,16 +161,31 @@ function renderPres(){
 }
 function allMatches(){ return pub && pub.matches ? Object.values(pub.matches).filter(Boolean) : []; }
 const effDate = m => m.newDate || m.date;
+const parseD2 = x => { const q=(x||'').split('/'); return q.length===3 ? new Date(+q[2],+q[1]-1,+q[0]) : null; };
+const keyOf = m => { const d = parseD2(effDate(m)); return (d ? d.getTime() : 0) + (parseInt(String(m.time||'0:0').replace(':','')) || 0); };
+function resCard(m, big){
+  const played = m.s1!=='' && m.s2!=='' && m.s1!=null && m.s2!=null;
+  const sam = m.home===ME || m.away===ME;
+  const dt = m.newDate ? `<span class="old">${esc(m.date)}</span><span class="new">${esc(m.newDate)}</span>` : esc(m.date);
+  return `<div class="card ${sam?'sam':''} ${big?'next':''}">${big?'<div class="lab">Prossima partita</div>':''}<div class="when">${dt} · ${esc(m.time)}</div>
+    <div class="res"><div class="t h">${esc(m.home)}</div><div class="sc ${played?'':'na'}">${played ? esc(m.s1)+' - '+esc(m.s2) : 'vs'}</div><div class="t">${esc(m.away)}</div></div>
+    ${big?`<div style="margin-top:12px"><button class="b si" style="width:100%;padding:14px" onclick="setTab('pres')">✅ Segna la presenza</button></div>`:''}</div>`;
+}
 function renderCal(){
   const ms = allMatches();
   if(!ms.length) return '<div class="msg">Calendario non ancora disponibile.</div>';
-  let h = `<div class="chips"><span class="chip ${calFilter==='all'?'on':''}" onclick="calFilter='all';render()">Tutte</span><span class="chip ${calFilter==='sam'?'on':''}" onclick="calFilter='sam';render()">Solo ${ME}</span></div>`;
-  ms.filter(m => calFilter==='all' || m.home===ME || m.away===ME).forEach(m => {
-    const played = m.s1!=='' && m.s2!=='' && m.s1!=null && m.s2!=null;
-    const dt = m.newDate ? `<span class="old">${esc(m.date)}</span><span class="new">${esc(m.newDate)}</span>` : esc(m.date);
-    h += `<div class="card ${(m.home===ME||m.away===ME)?'sam':''}"><div class="when">${dt} · ${esc(m.time)}</div>
-      <div class="res"><div class="t h">${esc(m.home)}</div><div class="sc ${played?'':'na'}">${played ? esc(m.s1)+' - '+esc(m.s2) : 'vs'}</div><div class="t">${esc(m.away)}</div></div></div>`;
-  });
+  const tdy = new Date(); tdy.setHours(0,0,0,0);
+  const isUp = m => { const d = parseD2(effDate(m)); return d && d >= tdy; };
+  const isSam = m => m.home===ME || m.away===ME;
+  const nextM = ms.filter(m => isSam(m) && isUp(m)).sort((a,b)=>keyOf(a)-keyOf(b))[0];
+  const flt = m => m !== nextM && (calFilter==='all' || isSam(m));
+  const up = ms.filter(m => isUp(m) && flt(m)).sort((a,b)=>keyOf(a)-keyOf(b));
+  const past = ms.filter(m => !isUp(m) && flt(m)).sort((a,b)=>keyOf(b)-keyOf(a));
+  let h = '';
+  if(nextM) h += resCard(nextM, true);
+  h += `<div class="chips"><span class="chip ${calFilter==='all'?'on':''}" onclick="calFilter='all';render()">Tutte</span><span class="chip ${calFilter==='sam'?'on':''}" onclick="calFilter='sam';render()">Solo ${ME}</span></div>`;
+  if(up.length) h += '<div class="sec">Prossime partite</div>' + up.map(m=>resCard(m,false)).join('');
+  if(past.length) h += '<div class="sec">Già giocate · risultati</div>' + past.map(m=>resCard(m,false)).join('');
   return h;
 }
 function renderClass(){
