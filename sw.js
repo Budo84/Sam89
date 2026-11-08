@@ -1,4 +1,4 @@
-const CACHE_NAME = 'winter-cup-v5';
+const CACHE_NAME = 'winter-cup-v6';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './genitori.html'];
 
 self.addEventListener('install', (e) => {

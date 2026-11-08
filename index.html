@@ -192,9 +192,9 @@ window.addEventListener('hashchange', route);
 
 /* ================= CALENDARIO ================= */
 let calFilter = 'all';
-function setFilter(f){ calFilter = f; vCalendario(); }
+function setFilter(f){ calFilter = f; vCalendario(true); }
 function presentCount(id){ const a = app.att[id]; return a ? Object.keys(a).length : null; }
-function vCalendario(){
+function vCalendario(noFetch){
   let h = `<h2>Risultati e Calendario</h2>
   <div class="chips"><span class="chip ${calFilter==='all'?'on':''}" onclick="setFilter('all')">Tutte</span>
   <span class="chip ${calFilter==='sam'?'on':''}" onclick="setFilter('sam')">Solo ${ME}</span></div>`;
@@ -202,6 +202,12 @@ function vCalendario(){
     const idx = matches.indexOf(m);
     const dt = m.newDate ? `<span class="old">${m.date}</span><span class="new">${m.newDate}</span>` : m.date;
     const pc = presentCount(m.id);
+    const dd = parseDate(effDate(m)), tdy = new Date(); tdy.setHours(0,0,0,0);
+    let rs = '';
+    if(isSam(m) && fbReady() && app.players.length && dd && dd >= tdy){
+      let si=0,no=0,nr=0; app.players.forEach(p=>{ const v=rsvpOf(p,m.id); if(v==='si')si++; else if(v==='no')no++; else nr++; });
+      rs = `<div class="ctr small" style="margin-top:8px">👪 <b style="color:#86efac">${si} sì</b> · <b style="color:#fca5a5">${no} no</b> · ${nr} da rispondere</div>`;
+    }
     h += `<div class="card ${isSam(m)?'sam':''}">
       <div class="row between small"><div>${dt} · ${m.time}</div>
         <button class="btn sm" onclick="openModal(${m.id})">🔄 Rimanda</button></div>
@@ -214,10 +220,12 @@ function vCalendario(){
         </div>
         <div class="t">${esc(m.away)}</div>
       </div>
+      ${rs}
       ${isSam(m) ? `<div style="margin-top:10px" class="ctr"><a class="btn primary sm" href="#/partita/${m.id}">👥 Presenze e formazione${pc!==null?` · ${pc} present${pc===1?'e':'i'}`:''}</a></div>` : ''}
     </div>`;
   });
   view.innerHTML = h;
+  if(fbReady() && !noFetch) refreshRsvp(false);
 }
 function setScore(idx, f, v){ matches[idx][f] = v; saveM(); schedulePub(); }
 
@@ -452,9 +460,26 @@ const rsvpOf = (p,mid) => p.token && rsvpCache[p.token] ? rsvpCache[p.token][mid
 async function refreshRsvp(manual){
   try{
     rsvpCache = (await fbReq('GET','rsvp')) || {};
-    if(location.hash.indexOf('#/partita/')===0){ const y=window.scrollY; vPartita(curMatch,true); window.scrollTo(0,y); }
+    syncVotes().catch(()=>{});
+    const h = location.hash;
+    if(h.indexOf('#/partita/')===0){ const y=window.scrollY; vPartita(curMatch,true); window.scrollTo(0,y); }
+    else if(h==='' || h==='#/' || h==='#/calendario'){ const y=window.scrollY; vCalendario(true); window.scrollTo(0,y); }
   }catch(e){ if(manual) alert('Non riesco a leggere le risposte: '+e.message); }
 }
+async function pidOf(token){
+  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('wc:'+token));
+  return Array.from(new Uint8Array(b)).slice(0,10).map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+async function ensurePids(){ let ch=false; for(const p of app.players){ if(p.token && !p.pid){ p.pid = await pidOf(p.token); ch=true; } } if(ch) saveA(); }
+// conteggi anonimi per i genitori: codice pubblico (pid) -> risposta, ricostruito dalle risposte private
+async function syncVotes(){
+  await ensurePids();
+  const v = {};
+  app.players.forEach(p => { const r = p.token && rsvpCache[p.token]; if(!r || !p.pid) return; Object.entries(r).forEach(([mid,val]) => { (v[mid] = v[mid] || {})[p.pid] = val; }); });
+  await fbReq('PUT','votes', Object.keys(v).length ? v : null);
+}
+setInterval(() => { const h = location.hash; if(fbReady() && !document.hidden && (h==='' || h==='#/' || h==='#/calendario' || h.indexOf('#/partita/')===0)) refreshRsvp(false); }, 10*60*1000);
+document.addEventListener('visibilitychange', () => { const h = location.hash; if(!document.hidden && fbReady() && (h==='' || h==='#/' || h==='#/calendario' || h.indexOf('#/partita/')===0)) refreshRsvp(false); });
 function applyRsvp(){
   const a = app.att[curMatch] = app.att[curMatch] || {};
   app.players.forEach(p => { if(rsvpOf(p,curMatch)==='si') a[p.id] = true; });
@@ -463,13 +488,16 @@ function applyRsvp(){
 function newToken(){ const b=new Uint8Array(15); crypto.getRandomValues(b); return Array.from(b,x=>'abcdefghijkmnpqrstuvwxyz23456789'[x%32]).join(''); }
 function ensureTokens(){ let ch=false; app.players.forEach(p=>{ if(!p.token){ p.token=newToken(); ch=true; } }); if(ch) saveA(); }
 async function publishFamilies(){
-  ensureTokens();
+  ensureTokens(); await ensurePids();
   const mo = {}; matches.filter(isSam).forEach(m => mo[m.id] = {home:m.home, away:m.away, date:effDate(m), time:m.time});
-  const fam = {}; app.players.forEach(p => fam[p.token] = {name:p.name, matches:mo});
+  const fam = {}; app.players.forEach(p => fam[p.token] = {name:p.name, pid:p.pid, matches:mo});
+  const pids = {}; app.players.forEach(p => pids[p.pid] = true);
+  await fbReq('PUT','pids',pids);
   await fbReq('PATCH','families',fam);
   await fbReq('PUT','public',pubData());
+  refreshRsvp(false);
 }
-function pubData(){ return {upd:new Date().toISOString(), matches: matches.map(m=>({id:m.id,date:m.date,newDate:m.newDate||'',time:m.time,home:m.home,away:m.away,s1:m.s1,s2:m.s2}))}; }
+function pubData(){ return {upd:new Date().toISOString(), n:app.players.length, matches: matches.map(m=>({id:m.id,date:m.date,newDate:m.newDate||'',time:m.time,home:m.home,away:m.away,s1:m.s1,s2:m.s2}))}; }
 let pubT = null;
 function schedulePub(){ if(!fbReady()) return; clearTimeout(pubT); pubT = setTimeout(()=>fbReq('PUT','public',pubData()).catch(()=>{}), 1500); }
 async function autoPublish(){ if(fbReady() && app.players.length){ try{ await publishFamilies(); }catch(e){} } }
