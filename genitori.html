@@ -26,6 +26,36 @@ main{max-width:520px;margin:0 auto;padding:16px 12px 40px}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#065f46;color:#fff;padding:10px 18px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none}
 .toast.on{opacity:1}
 .toast.bad{background:#991b1b}
+.next{border:2px solid #3b82f6;box-shadow:0 0 0 4px #3b82f633;padding:18px 16px;margin-bottom:18px}
+.next .lab{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#60a5fa;margin-bottom:6px}
+.next .when{font-size:15px;color:#d1d5db}
+.next .vs{font-size:22px;margin:8px 0 6px}
+.next .state{font-size:14px;margin:0 0 14px}
+.next .state.ok{color:#4ade80}.next .state.wait{color:#fbbf24}.next .state.no{color:#f87171}
+.next .b{padding:20px 6px;font-size:18px}
+details.more{margin-top:6px}
+details.more summary{cursor:pointer;color:#9ca3af;font-size:14px;padding:10px 4px;list-style:none;text-align:center;border:1px dashed #374151;border-radius:10px;margin-bottom:12px}
+details.more[open] summary{margin-bottom:12px}
+details.more .card{opacity:.92}
+.tabs{display:flex;background:#1f2937;border-bottom:1px solid #374151;position:sticky;top:0;z-index:5;margin:-16px -12px 14px}
+.tabs button{flex:1;padding:13px 4px;background:none;border:0;border-bottom:2px solid transparent;color:#9ca3af;font-size:14px;cursor:pointer}
+.tabs button.on{color:#60a5fa;border-color:#60a5fa;font-weight:700}
+.chips{display:flex;gap:6px;margin-bottom:12px}
+.chip{padding:6px 12px;border-radius:999px;border:1px solid #374151;background:#1f2937;color:#9ca3af;font-size:13px;cursor:pointer}
+.chip.on{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
+.res{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:6px}
+.res .t{flex:1;font-weight:600;font-size:14px}.res .t.h{text-align:right}
+.res .sc{min-width:64px;text-align:center;font-size:20px;font-weight:800;background:#0f172a;border-radius:8px;padding:6px 8px}
+.res .sc.na{color:#6b7280;font-weight:600;font-size:15px}
+.card.sam{border-color:#2563eb}
+.old{text-decoration:line-through;color:#6b7280;margin-right:6px}.new{color:#4ade80;font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:13px;text-align:center}
+th,td{border:1px solid #4b5563;padding:7px 3px}th{background:#374151}
+td.l,th.l{text-align:left;padding-left:8px}
+tr.q{background:#14532d44}tr.e{background:#7f1d1d44}tr.me td.l{color:#93c5fd;font-weight:700}
+.pos{color:#4ade80}.neg{color:#f87171}
+.legend{font-size:12px;color:#9ca3af;margin-top:10px}
+.legend i{display:inline-block;width:11px;height:11px;margin-right:5px;vertical-align:-1px}
 .foot{text-align:center;font-size:12px;color:#6b7280;margin-top:18px}
 </style>
 </head>
@@ -39,7 +69,8 @@ const DB = (q.get('d')||'').replace(/\/+$/,'');
 const TOK = q.get('f')||'';
 const main = document.getElementById('main');
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let fam = null, rsvp = {};
+let fam = null, rsvp = {}, pub = null, tab = 'pres', calFilter = 'all';
+const ME = 'Sam 89';
 
 function toast(t,bad){ const e=document.getElementById('toast'); e.textContent=t; e.className='toast on'+(bad?' bad':''); setTimeout(()=>e.className='toast'+(bad?' bad':''),2200); }
 function parseD(s){ const p=(s||'').split('/'); return p.length===3 ? new Date(+p[2],+p[1]-1,+p[0]) : null; }
@@ -53,26 +84,72 @@ async function init(){
     const r = await fetch(`${DB}/families/${TOK}.json`); if(!r.ok) throw 0;
     fam = await r.json();
     if(!fam){ main.innerHTML = '<div class="msg err">Link non valido o non più attivo. Chiedi di nuovo il link all\'allenatore.</div>'; return; }
-    await loadRsvp(); render();
+    await loadRsvp();
+    try{ const pr = await fetch(`${DB}/public.json`); pub = pr.ok ? await pr.json() : null; }catch(e){ pub = null; }
+    render();
   }catch(e){ main.innerHTML = '<div class="msg err">Impossibile collegarsi. Controlla la connessione e riprova.</div>'; }
 }
 async function loadRsvp(){ const r = await fetch(`${DB}/rsvp/${TOK}.json`); rsvp = (r.ok && await r.json()) || {}; }
 
-function render(){
+let moreOpen = false;
+function matchCard(m, big){
+  const v = rsvp[m.id];
+  const btns = `<div class="btns"><button class="b si ${v==='si'?'on':''}" onclick="set('${m.id}','si')">✅ Ci sarà</button>
+      <button class="b no ${v==='no'?'on':''}" onclick="set('${m.id}','no')">❌ Non ci sarà</button></div>`;
+  const when = `${DAYS[m.d.getDay()]} ${esc(m.date)} · ore ${esc(m.time)}`;
+  const vs = `${esc(m.home)} <span style="color:#6b7280">vs</span> ${esc(m.away)}`;
+  if(!big) return `<div class="card"><div class="when">${when}</div><div class="vs">${vs}</div>${btns}</div>`;
+  const state = v==='si' ? '<div class="state ok">✓ Hai risposto: ci sarà</div>' : v==='no' ? '<div class="state no">Hai risposto: non ci sarà</div>' : '<div class="state wait">Non hai ancora risposto</div>';
+  return `<div class="card next"><div class="lab">Prossima partita</div><div class="when">${when}</div><div class="vs">${vs}</div>${state}${btns}</div>`;
+}
+function renderPres(){
   const today = new Date(); today.setHours(0,0,0,0);
   const ms = Object.entries(fam.matches||{}).map(([id,m])=>({id,...m,d:parseD(m.date)}))
     .filter(m => m.d && m.d >= today).sort((a,b)=>a.d-b.d || String(a.time).localeCompare(String(b.time)));
   let h = `<div class="hello">Presenza di <b>${esc(fam.name)}</b></div>`;
-  if(!ms.length) h += '<div class="msg">Non ci sono partite in programma.</div>';
-  ms.forEach(m => {
-    const v = rsvp[m.id];
-    h += `<div class="card"><div class="when">${DAYS[m.d.getDay()]} ${esc(m.date)} · ore ${esc(m.time)}</div>
-      <div class="vs">${esc(m.home)} <span style="color:#6b7280">vs</span> ${esc(m.away)}</div>
-      <div class="btns"><button class="b si ${v==='si'?'on':''}" onclick="set('${m.id}','si')">✅ Ci sarà</button>
-      <button class="b no ${v==='no'?'on':''}" onclick="set('${m.id}','no')">❌ Non ci sarà</button></div></div>`;
-  });
+  if(!ms.length){ h += '<div class="msg">Non ci sono partite in programma.</div>'; }
+  else {
+    h += matchCard(ms[0], true);
+    const rest = ms.slice(1);
+    if(rest.length) h += `<details class="more" ${moreOpen?'open':''} ontoggle="moreOpen=this.open"><summary>Altre partite (${rest.length})</summary>${rest.map(m=>matchCard(m,false)).join('')}</details>`;
+  }
   h += '<div class="foot">Puoi cambiare risposta in qualsiasi momento.</div>';
-  main.innerHTML = h;
+  return h;
+}
+function allMatches(){ return pub && pub.matches ? Object.values(pub.matches).filter(Boolean) : []; }
+const effDate = m => m.newDate || m.date;
+function renderCal(){
+  const ms = allMatches();
+  if(!ms.length) return '<div class="msg">Calendario non ancora disponibile.</div>';
+  let h = `<div class="chips"><span class="chip ${calFilter==='all'?'on':''}" onclick="calFilter='all';render()">Tutte</span><span class="chip ${calFilter==='sam'?'on':''}" onclick="calFilter='sam';render()">Solo ${ME}</span></div>`;
+  ms.filter(m => calFilter==='all' || m.home===ME || m.away===ME).forEach(m => {
+    const played = m.s1!=='' && m.s2!=='' && m.s1!=null && m.s2!=null;
+    const dt = m.newDate ? `<span class="old">${esc(m.date)}</span><span class="new">${esc(m.newDate)}</span>` : esc(m.date);
+    h += `<div class="card ${(m.home===ME||m.away===ME)?'sam':''}"><div class="when">${dt} · ${esc(m.time)}</div>
+      <div class="res"><div class="t h">${esc(m.home)}</div><div class="sc ${played?'':'na'}">${played ? esc(m.s1)+' - '+esc(m.s2) : 'vs'}</div><div class="t">${esc(m.away)}</div></div></div>`;
+  });
+  return h;
+}
+function renderClass(){
+  const ms = allMatches();
+  if(!ms.length) return '<div class="msg">Classifica non ancora disponibile.</div>';
+  const t = {}; ms.forEach(m => [m.home,m.away].forEach(n => { if(!t[n]) t[n] = {nome:n,pt:0,g:0,v:0,n:0,p:0,gf:0,gs:0,dr:0}; }));
+  ms.forEach(m => {
+    if(m.s1===''||m.s2===''||m.s1==null||m.s2==null||isNaN(parseInt(m.s1))||isNaN(parseInt(m.s2))) return;
+    const a=parseInt(m.s1), b=parseInt(m.s2), H=t[m.home], A=t[m.away];
+    H.g++;A.g++;H.gf+=a;H.gs+=b;A.gf+=b;A.gs+=a;
+    if(a>b){H.v++;H.pt+=3;A.p++} else if(a<b){A.v++;A.pt+=3;H.p++} else {H.n++;A.n++;H.pt++;A.pt++}
+  });
+  const arr = Object.values(t); arr.forEach(x=>x.dr=x.gf-x.gs);
+  arr.sort((a,b)=> b.pt-a.pt || b.dr-a.dr || b.gf-a.gf);
+  let h = '<table><thead><tr><th>Pos</th><th class="l">Squadra</th><th>PT</th><th>G</th><th>V</th><th>N</th><th>P</th><th>GF</th><th>GS</th><th>DR</th></tr></thead><tbody>';
+  arr.forEach((x,i)=>{ h += `<tr class="${i<4?'q':'e'} ${x.nome===ME?'me':''}"><td><b>${i+1}</b></td><td class="l">${esc(x.nome)}</td><td style="color:#60a5fa"><b>${x.pt}</b></td><td>${x.g}</td><td>${x.v}</td><td>${x.n}</td><td>${x.p}</td><td>${x.gf}</td><td>${x.gs}</td><td class="${x.dr>0?'pos':x.dr<0?'neg':''}"><b>${x.dr>0?'+'+x.dr:x.dr}</b></td></tr>`; });
+  return h + '</tbody></table><div class="legend"><div><i style="background:#14532d"></i>Qualificate alle semifinali (1°-4°)</div><div style="margin-top:4px"><i style="background:#7f1d1d"></i>Eliminate / finalina</div>' + (pub.upd ? `<div style="margin-top:4px">Aggiornata il ${new Date(pub.upd).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>` : '') + '</div>';
+}
+function setTab(t){ tab = t; render(); window.scrollTo(0,0); }
+function render(){
+  const tabs = `<div class="tabs"><button class="${tab==='pres'?'on':''}" onclick="setTab('pres')">Presenza</button><button class="${tab==='cal'?'on':''}" onclick="setTab('cal')">Calendario</button><button class="${tab==='cla'?'on':''}" onclick="setTab('cla')">Classifica</button></div>`;
+  main.innerHTML = tabs + (tab==='cal' ? renderCal() : tab==='cla' ? renderClass() : renderPres());
 }
 async function set(id,v){
   const prev = rsvp[id]; rsvp[id] = v; render();

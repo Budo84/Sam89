@@ -219,7 +219,7 @@ function vCalendario(){
   });
   view.innerHTML = h;
 }
-function setScore(idx, f, v){ matches[idx][f] = v; saveM(); }
+function setScore(idx, f, v){ matches[idx][f] = v; saveM(); schedulePub(); }
 
 /* modal recupero */
 let modalId = null;
@@ -467,38 +467,40 @@ async function publishFamilies(){
   const mo = {}; matches.filter(isSam).forEach(m => mo[m.id] = {home:m.home, away:m.away, date:effDate(m), time:m.time});
   const fam = {}; app.players.forEach(p => fam[p.token] = {name:p.name, matches:mo});
   await fbReq('PATCH','families',fam);
+  await fbReq('PUT','public',pubData());
 }
+function pubData(){ return {upd:new Date().toISOString(), matches: matches.map(m=>({id:m.id,date:m.date,newDate:m.newDate||'',time:m.time,home:m.home,away:m.away,s1:m.s1,s2:m.s2}))}; }
+let pubT = null;
+function schedulePub(){ if(!fbReady()) return; clearTimeout(pubT); pubT = setTimeout(()=>fbReq('PUT','public',pubData()).catch(()=>{}), 1500); }
 async function autoPublish(){ if(fbReady() && app.players.length){ try{ await publishFamilies(); }catch(e){} } }
 function parentLink(p){
   const base = location.href.split('#')[0].split('?')[0].replace(/[^\/]*$/,'');
   return `${base}genitori.html?d=${encodeURIComponent(fbBase())}&f=${p.token}`;
 }
-function fbSection(){
-  const c = fbCfg();
-  let h = `<h3>Presenze dei genitori (Firebase)</h3><div class="card">
-  <div class="small">Collega il database per far segnare ai genitori la presenza con un link personale. Guida: file SETUP_FIREBASE.md.</div>
+function fbLinks(){
+  if(!fbReady()) return '';
+  let h = `<h3>Presenze dei genitori</h3><div class="card"><div class="stack"><button class="btn primary" style="width:100%" onclick="fbPublish()">📤 Pubblica partite e bambini per i genitori</button></div>
+    <div class="small">Premi dopo aver aggiunto bambini o cambiato date. Risultati e cambi di data si pubblicano da soli.</div><div class="status" id="fb-pub"></div></div>`;
+  if(!app.players.length) return h + `<div class="small">Aggiungi prima i bambini nella Rosa.</div>`;
+  ensureTokens();
+  h += `<h3>Link personali</h3><div class="card">`;
+  app.players.forEach(p => {
+    const link = parentLink(p);
+    const wa = 'https://wa.me/?text=' + encodeURIComponent(`Ciao! Qui puoi segnare la presenza di ${p.name} alle partite Winter Cup (Sam 89). Puoi cambiare risposta quando vuoi: ${link}`);
+    h += `<div class="linkrow"><b>${esc(p.name)}</b><div class="row"><button class="btn sm" onclick="copyLink('${p.id}')">Copia</button><a class="btn sm primary" target="_blank" rel="noopener" href="${wa}">WhatsApp</a></div></div>`;
+  });
+  return h + `</div>`;
+}
+function fbConfig(){
+  const c = fbCfg(), ready = fbReady();
+  return `<details class="card" style="padding:0" ${ready?'':'open'}><summary style="cursor:pointer;padding:12px;font-weight:700;font-size:15px">⚙️ Collegamento al database (Firebase) ${ready?'<span style="color:#4ade80;font-weight:400;font-size:13px">· collegato</span>':'<span style="color:#fbbf24;font-weight:400;font-size:13px">· da configurare</span>'}</summary>
+  <div style="padding:0 12px 12px"><div class="small">Serve per far segnare ai genitori la presenza con un link personale. Guida: file SETUP_FIREBASE.md.</div>
   <label class="f">Database URL</label><input type="text" id="fb-db" value="${esc(c.db||'')}" placeholder="https://xxxx-default-rtdb.europe-west1.firebasedatabase.app" autocapitalize="off">
   <label class="f">Web API Key</label><input type="text" id="fb-key" value="${esc(c.apiKey||'')}" autocapitalize="off">
   <label class="f">Email allenatore</label><input type="text" id="fb-mail" value="${esc(c.email||'')}" autocapitalize="off">
   <label class="f">Password</label><input type="password" id="fb-pw" value="${esc(c.password||'')}" style="background:var(--card2);border:1px solid #4b5563;border-radius:8px;color:var(--txt);padding:9px;font-size:15px;width:100%">
   <div class="stack" style="margin-top:12px"><button class="btn primary" style="width:100%" onclick="fbSave()">Salva e verifica</button></div>
-  <div class="status" id="fb-status"></div></div>`;
-  if(fbReady()){
-    h += `<div class="card"><div class="stack"><button class="btn primary" style="width:100%" onclick="fbPublish()">📤 Pubblica partite e bambini per i genitori</button></div>
-    <div class="small">Premi dopo aver aggiunto bambini o cambiato date. I cambi di data da "Rimanda" si pubblicano da soli.</div><div class="status" id="fb-pub"></div></div>`;
-    if(!app.players.length) h += `<div class="small">Aggiungi prima i bambini nella Rosa.</div>`;
-    else {
-      ensureTokens();
-      h += `<h3>Link personali</h3><div class="card">`;
-      app.players.forEach(p => {
-        const link = parentLink(p);
-        const wa = 'https://wa.me/?text=' + encodeURIComponent(`Ciao! Qui puoi segnare la presenza di ${p.name} alle partite Winter Cup (Sam 89). Puoi cambiare risposta quando vuoi: ${link}`);
-        h += `<div class="linkrow"><b>${esc(p.name)}</b><div class="row"><button class="btn sm" onclick="copyLink('${p.id}')">Copia</button><a class="btn sm primary" target="_blank" rel="noopener" href="${wa}">WhatsApp</a></div></div>`;
-      });
-      h += `</div>`;
-    }
-  }
-  return h;
+  <div class="status" id="fb-status"></div></div></details>`;
 }
 async function fbSave(){
   const st = document.getElementById('fb-status');
@@ -538,7 +540,8 @@ function vRosa(){
       <div class="row"><button class="btn sm" onclick="editPlayer('${p.id}')">✏️</button><button class="btn sm danger" onclick="delPlayer('${p.id}')">🗑</button></div></div>
       <div class="small" style="margin-top:6px">Presenze: ${n}/${recorded.length}</div><div class="bar"><div style="width:${pct}%"></div></div></div>`;
   });
-  h += fbSection();
+  h += fbLinks();
+  h += fbConfig();
   h += `<h3>Backup dati</h3><div class="card stack"><div class="small">I dati sono salvati su questo dispositivo. Esporta un backup per non perderli o per portarli su un altro telefono.</div>
   <button class="btn" style="width:100%" onclick="exportData()">⬇️ Esporta backup</button>
   <button class="btn" style="width:100%" onclick="document.getElementById('imp-file').click()">⬆️ Importa backup</button>
