@@ -123,6 +123,7 @@ if ('serviceWorker' in navigator) { window.addEventListener('load', () => naviga
 
 /* ================= DATI ================= */
 const ME = 'Sam 89';
+const MIN = 5; // minimo di bambini per giocare
 const TEAMS = ['Cr Sport','Calcutta Team','San Vincenzo De Paoli','Soccer Sgl','Sam 89','Atl Lodigiani'];
 const initialMatches = [
  {id:1,date:"17/10/2026",time:"15:00",home:"Cr Sport",away:"Calcutta Team",s1:"3",s2:"1",newDate:""},
@@ -162,7 +163,7 @@ const LS_A = 'winterCupApp26';       // rosa, presenze, formazioni
 function load(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
 let matches = load(LS_M) || JSON.parse(JSON.stringify(initialMatches));
 let app = load(LS_A) || {};
-app.players = app.players || []; app.att = app.att || {}; app.lineup = app.lineup || {};
+app.players = app.players || []; app.att = app.att || {}; app.lineup = app.lineup || {}; app.man = app.man || {};
 function saveM(){ localStorage.setItem(LS_M, JSON.stringify(matches)); }
 function saveA(){ localStorage.setItem(LS_A, JSON.stringify(app)); }
 
@@ -206,7 +207,7 @@ function vCalendario(noFetch){
     let rs = '';
     if(isSam(m) && fbReady() && app.players.length && dd && dd >= tdy){
       let si=0,no=0,nr=0; app.players.forEach(p=>{ const v=rsvpOf(p,m.id); if(v==='si')si++; else if(v==='no')no++; else nr++; });
-      rs = `<div class="ctr small" style="margin-top:8px">👪 <b style="color:#86efac">${si} sì</b> · <b style="color:#fca5a5">${no} no</b> · ${nr} da rispondere</div>`;
+      rs = `<div class="ctr small" style="margin-top:8px">👪 <b style="color:#86efac">${si} sì</b> · <b style="color:#fca5a5">${no} no</b> · ${nr} da rispondere<br>${si>=MIN?'<b style="color:#4ade80">✅ minimo raggiunto</b>':`<b style="color:#fbbf24">⏳ mancano ${MIN-si} per il minimo di ${MIN}</b>`}</div>`;
     }
     h += `<div class="card ${isSam(m)?'sam':''}">
       <div class="row between small"><div>${dt} · ${m.time}</div>
@@ -346,9 +347,9 @@ function vPartita(id, noFetch){
   let sum = '';
   if(ready){
     let si=0,no=0,nr=0; app.players.forEach(p=>{ const v=rsvpOf(p,id); if(v==='si')si++; else if(v==='no')no++; else nr++; });
-    sum = `<div class="sum">👪 Risposte dei genitori: <b style="color:#86efac">${si} sì</b> · <b style="color:#fca5a5">${no} no</b> · ${nr} senza risposta</div>
+    sum = `<div class="sum">👪 Risposte dei genitori: <b style="color:#86efac">${si} sì</b> · <b style="color:#fca5a5">${no} no</b> · ${nr} senza risposta<br>${si>=MIN?'<b style="color:#4ade80">✅ minimo raggiunto ('+MIN+')</b>':'<b style="color:#fbbf24">⏳ mancano '+(MIN-si)+' per il minimo di '+MIN+'</b>'}</div>
     <div class="row" style="margin-bottom:8px;flex-wrap:wrap"><button class="btn sm" onclick="refreshRsvp(true)">🔄 Aggiorna risposte</button>
-    <button class="btn sm" onclick="applyRsvp()">Segna presenti chi ha risposto "Ci sarà"</button></div>`;
+    <button class="btn sm" onclick="applyRsvp()">↺ Riallinea alle risposte dei genitori</button></div>`;
   }
   h += `<h3>Presenze · <span id="pc">${pres.length}</span>/${app.players.length}</h3>${sum}
   <div class="row" style="margin-bottom:8px"><button class="btn sm" onclick="allAtt(true)">Tutti presenti</button><button class="btn sm" onclick="allAtt(false)">Nessuno</button></div>`;
@@ -365,11 +366,13 @@ function vPartita(id, noFetch){
 }
 function toggleAtt(pid){
   const a = app.att[curMatch] || (app.att[curMatch] = {});
+  (app.man[curMatch] = app.man[curMatch] || {})[pid] = true;
   if(a[pid]) delete a[pid]; else a[pid] = true;
   saveA(); const y = window.scrollY; vPartita(curMatch,true); window.scrollTo(0,y);
 }
 function allAtt(v){
   app.att[curMatch] = {}; if(v) app.players.forEach(p => app.att[curMatch][p.id] = true);
+  app.man[curMatch] = {}; app.players.forEach(p => app.man[curMatch][p.id] = true);
   saveA(); const y = window.scrollY; vPartita(curMatch,true); window.scrollTo(0,y);
 }
 function pitchSvg(){
@@ -460,7 +463,8 @@ const rsvpOf = (p,mid) => p.token && rsvpCache[p.token] ? rsvpCache[p.token][mid
 async function refreshRsvp(manual){
   try{
     rsvpCache = (await fbReq('GET','rsvp')) || {};
-    syncVotes().catch(()=>{});
+    followRsvp();
+    syncVotes().catch(() => { if(manual) alert('Risposte lette, ma non riesco ad aggiornare i conteggi per i genitori. Controlla di aver incollato in Firebase le regole nuove (database.rules.json).'); });
     const h = location.hash;
     if(h.indexOf('#/partita/')===0){ const y=window.scrollY; vPartita(curMatch,true); window.scrollTo(0,y); }
     else if(h==='' || h==='#/' || h==='#/calendario'){ const y=window.scrollY; vCalendario(true); window.scrollTo(0,y); }
@@ -480,10 +484,26 @@ async function syncVotes(){
 }
 setInterval(() => { const h = location.hash; if(fbReady() && !document.hidden && (h==='' || h==='#/' || h==='#/calendario' || h.indexOf('#/partita/')===0)) refreshRsvp(false); }, 10*60*1000);
 document.addEventListener('visibilitychange', () => { const h = location.hash; if(!document.hidden && fbReady() && (h==='' || h==='#/' || h==='#/calendario' || h.indexOf('#/partita/')===0)) refreshRsvp(false); });
+function followMatch(mid){
+  let ch = false;
+  app.players.forEach(p => {
+    const v = rsvpOf(p,mid); if(!v) return;
+    if(app.man[mid] && app.man[mid][p.id]) return;
+    const a = app.att[mid];
+    if(v==='si'){ if(!a || !a[p.id]){ (app.att[mid] = app.att[mid] || {})[p.id] = true; ch = true; } }
+    else if(a && a[p.id]){ delete a[p.id]; ch = true; }
+  });
+  return ch;
+}
+// le presenze seguono le risposte dei genitori (finché non le modifichi tu a mano) per le partite di oggi e future
+function followRsvp(){
+  const tdy = new Date(); tdy.setHours(0,0,0,0); let ch = false;
+  matches.filter(isSam).forEach(m => { const d = parseDate(effDate(m)); if(d && d >= tdy && followMatch(m.id)) ch = true; });
+  if(ch) saveA();
+}
 function applyRsvp(){
-  const a = app.att[curMatch] = app.att[curMatch] || {};
-  app.players.forEach(p => { if(rsvpOf(p,curMatch)==='si') a[p.id] = true; });
-  saveA(); const y=window.scrollY; vPartita(curMatch,true); window.scrollTo(0,y);
+  delete app.man[curMatch]; followMatch(curMatch); saveA();
+  const y=window.scrollY; vPartita(curMatch,true); window.scrollTo(0,y);
 }
 function newToken(){ const b=new Uint8Array(15); crypto.getRandomValues(b); return Array.from(b,x=>'abcdefghijkmnpqrstuvwxyz23456789'[x%32]).join(''); }
 function ensureTokens(){ let ch=false; app.players.forEach(p=>{ if(!p.token){ p.token=newToken(); ch=true; } }); if(ch) saveA(); }
@@ -552,7 +572,8 @@ async function copyLink(id){
 /* ================= ROSA ================= */
 function uid(){ return 'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function vRosa(){
-  const recorded = matches.filter(m => isSam(m) && app.att[m.id]);
+  const tdy = new Date(); tdy.setHours(0,0,0,0);
+  const recorded = matches.filter(m => { const d = parseDate(effDate(m)); return isSam(m) && app.att[m.id] && d && d <= tdy; });
   let h = `<h2>Rosa ${ME}</h2>
   <div class="card stack"><div class="row"><input type="text" id="np-name" placeholder="Nome del bambino" style="flex:1" onkeydown="if(event.key==='Enter')addPlayer()"><input type="number" id="np-num" placeholder="N°" inputmode="numeric" style="width:70px"></div>
   <button class="btn primary" style="width:100%" onclick="addPlayer()">+ Aggiungi</button>

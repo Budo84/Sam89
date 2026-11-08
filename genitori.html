@@ -59,6 +59,20 @@ tr.q{background:#14532d44}tr.e{background:#7f1d1d44}tr.me td.l{color:#93c5fd;fon
 .cnt{font-size:14px;color:#d1d5db;margin:0 0 12px}
 .cnt b{color:#4ade80}
 .next .cnt{font-size:15px;margin:-4px 0 14px}
+.ov{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;padding:18px;z-index:50}
+.ov.on{display:flex}
+.pop{background:#1f2937;border:1px solid #4b5563;border-radius:16px;width:100%;max-width:340px;padding:22px 20px;text-align:center}
+.pop .ic{font-size:40px;margin-bottom:6px}
+.pop h2{margin:0 0 8px;font-size:19px}
+.pop p{margin:0 0 6px;color:#d1d5db;font-size:15px;line-height:1.4}
+.pop .inf{font-size:14px;margin:10px 0 16px;padding:8px 10px;border-radius:8px;background:#0f172a}
+.pop .inf.ok{color:#4ade80}.pop .inf.wait{color:#fbbf24}
+.pop .pb{display:flex;flex-direction:column;gap:8px}
+.pop button{padding:14px;border-radius:10px;border:0;font-size:16px;font-weight:700;cursor:pointer;color:#fff}
+.pop .go{background:#2563eb}.pop .go.si{background:#15803d}.pop .go.no{background:#b91c1c}.pop .go.rm{background:#6b7280}
+.pop .cc{background:#374151}
+.min{font-size:14px;margin:0 0 12px;padding:8px 10px;border-radius:8px;font-weight:600}
+.min.ok{background:#14532d88;color:#4ade80}.min.wait{background:#78350f88;color:#fbbf24}
 .foot{text-align:center;font-size:12px;color:#6b7280;margin-top:18px}
 </style>
 </head>
@@ -66,6 +80,7 @@ tr.q{background:#14532d44}tr.e{background:#7f1d1d44}tr.me td.l{color:#93c5fd;fon
 <header><h1>⚽ Winter Cup 2026 · Sam 89</h1></header>
 <main id="main"><div class="msg">Caricamento…</div></main>
 <div class="toast" id="toast"></div>
+<div class="ov" id="ov"><div class="pop" id="pop"></div></div>
 <script>
 const q = new URLSearchParams(location.search);
 const DB = (q.get('d')||'').replace(/\/+$/,'');
@@ -74,6 +89,7 @@ const main = document.getElementById('main');
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let fam = null, rsvp = {}, votes = {}, pub = null, tab = 'pres', calFilter = 'all';
 const ME = 'Sam 89';
+const MIN = 5; // minimo di bambini per giocare
 
 function toast(t,bad){ const e=document.getElementById('toast'); e.textContent=t; e.className='toast on'+(bad?' bad':''); setTimeout(()=>e.className='toast'+(bad?' bad':''),2200); }
 function parseD(s){ const p=(s||'').split('/'); return p.length===3 ? new Date(+p[2],+p[1]-1,+p[0]) : null; }
@@ -105,9 +121,14 @@ async function refreshAll(){
   }catch(e){}
 }
 function countsOf(id){ let si=0,no=0; Object.values(votes[id]||{}).forEach(x => { if(x==='si') si++; else if(x==='no') no++; }); return {si,no}; }
+function minLine(si){
+  return si >= MIN
+    ? `<div class="min ok">✅ Minimo raggiunto: ci siamo per giocare! (${si}/${MIN})</div>`
+    : `<div class="min wait">⏳ Mancano ${MIN-si} bambin${MIN-si===1?'o':'i'} per arrivare al minimo di ${MIN}</div>`;
+}
 function cntLine(id){
   const {si,no} = countsOf(id), n = pub && pub.n ? pub.n : 0;
-  return `<div class="cnt">👥 Finora <b>${si}</b>${n?` su ${n}`:''} ci saranno${no?` · ${no} non ci sarà${no>1?'nno':''}`:''}</div>`;
+  return `<div class="cnt">👥 Finora <b>${si}</b>${n?` su ${n}`:''} ci saranno${no?` · ${no} non ci sarà${no>1?'nno':''}`:''}</div>${minLine(si)}`;
 }
 async function loadRsvp(){ const r = await fetch(`${DB}/rsvp/${TOK}.json`); rsvp = (r.ok && await r.json()) || {}; }
 
@@ -133,7 +154,7 @@ function renderPres(){
     const rest = ms.slice(1);
     if(rest.length) h += `<details class="more" ${moreOpen?'open':''} ontoggle="moreOpen=this.open"><summary>Altre partite (${rest.length})</summary>${rest.map(m=>matchCard(m,false)).join('')}</details>`;
   }
-  h += '<div class="foot">Puoi cambiare risposta in qualsiasi momento.</div>';
+  h += '<div class="foot">Puoi cambiare risposta quando vuoi. Tocca di nuovo il pulsante scelto per toglierla.</div>';
   return h;
 }
 function allMatches(){ return pub && pub.matches ? Object.values(pub.matches).filter(Boolean) : []; }
@@ -171,14 +192,42 @@ function render(){
   const tabs = `<div class="tabs"><button class="${tab==='pres'?'on':''}" onclick="setTab('pres')">Presenza</button><button class="${tab==='cal'?'on':''}" onclick="setTab('cal')">Calendario</button><button class="${tab==='cla'?'on':''}" onclick="setTab('cla')">Classifica</button></div>`;
   main.innerHTML = tabs + (tab==='cal' ? renderCal() : tab==='cla' ? renderClass() : renderPres());
 }
-async function set(id,v){
-  const prev = rsvp[id]; rsvp[id] = v; render();
+let pending = null;
+function closePop(){ document.getElementById('ov').classList.remove('on'); pending = null; }
+function set(id, v){
+  const cur = rsvp[id], nv = (cur === v) ? null : v;
+  const m = fam.matches[id]; if(!m) return;
+  pending = {id, nv};
+  const si0 = countsOf(id).si - (cur==='si'?1:0), si1 = si0 + (nv==='si'?1:0);
+  const what = `${esc(fam.name)} · ${esc(m.home)} vs ${esc(m.away)}<br>${esc(m.date)} ore ${esc(m.time)}`;
+  let ic, title, body, cls, label;
+  if(nv==='si'){ ic='✅'; title='Confermi la presenza?'; body=`Segno che <b>${esc(fam.name)}</b> ci sarà.`; cls='si'; label='Sì, ci sarà'; }
+  else if(nv==='no'){ ic='❌'; title="Confermi l'assenza?"; body=`Segno che <b>${esc(fam.name)}</b> non ci sarà.`; cls='no'; label='Sì, non ci sarà'; }
+  else { ic='↩️'; title='Togliere la risposta?'; body=`Vuoi togliere la risposta${cur==='si'?' di presenza':' di assenza'} per <b>${esc(fam.name)}</b>? Tornerà "senza risposta".`; cls='rm'; label='Sì, togli'; }
+  const info = si1 >= MIN ? `<div class="inf ok">Dopo questa risposta: ${si1} su ${MIN} minimo · ✅ ci siamo per giocare</div>`
+                          : `<div class="inf wait">Dopo questa risposta: ${si1} su ${MIN} minimo · mancano ${MIN-si1}</div>`;
+  document.getElementById('pop').innerHTML = `<div class="ic">${ic}</div><h2>${title}</h2><p>${body}</p><p style="font-size:13px;color:#9ca3af">${what}</p>${info}
+    <div class="pb"><button class="go ${cls}" onclick="commit()">${label}</button><button class="cc" onclick="closePop()">Annulla</button></div>`;
+  document.getElementById('ov').classList.add('on');
+}
+async function commit(){
+  if(!pending) return; const {id, nv} = pending; closePop();
+  const prev = rsvp[id];
+  if(nv===null) delete rsvp[id]; else rsvp[id] = nv;
+  if(fam.pid){ if(nv===null){ if(votes[id]) delete votes[id][fam.pid]; } else (votes[id] = votes[id] || {})[fam.pid] = nv; }
+  render();
   try{
-    const r = await fetch(`${DB}/rsvp/${TOK}/${id}.json`,{method:'PUT',body:JSON.stringify(v)});
-    if(!r.ok) throw 0; toast('Risposta salvata ✓');
-    if(fam.pid){ (votes[id] = votes[id] || {})[fam.pid] = v; render();
-      fetch(`${DB}/votes/${id}/${fam.pid}.json`,{method:'PUT',body:JSON.stringify(v)}).catch(()=>{}); }
-  }catch(e){ if(prev) rsvp[id]=prev; else delete rsvp[id]; render(); toast('Non salvato, riprova',true); }
+    const r = await fetch(`${DB}/rsvp/${TOK}/${id}.json`,{method: nv===null?'DELETE':'PUT', body: nv===null?undefined:JSON.stringify(nv)});
+    if(!r.ok) throw 0;
+    toast(nv===null ? 'Risposta tolta ✓' : nv==='si' ? 'Presenza salvata ✓' : 'Assenza salvata ✓');
+    if(fam.pid){
+      fetch(`${DB}/votes/${id}/${fam.pid}.json`,{method: nv===null?'DELETE':'PUT', body: nv===null?undefined:JSON.stringify(nv)}).catch(()=>{})
+        .then(loadVotes).then(() => { if(fam.pid){ if(nv===null){ if(votes[id]) delete votes[id][fam.pid]; } else (votes[id] = votes[id] || {})[fam.pid] = nv; } render(); });
+    }
+  }catch(e){
+    if(prev) rsvp[id]=prev; else delete rsvp[id];
+    await loadVotes(); render(); toast('Non salvato, riprova',true);
+  }
 }
 init();
 </script>

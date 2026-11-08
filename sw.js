@@ -1,4 +1,4 @@
-const CACHE_NAME = 'winter-cup-v6';
+const CACHE_NAME = 'winter-cup-v8';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './genitori.html'];
 
 self.addEventListener('install', (e) => {
@@ -14,9 +14,11 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// Network-first: online prende sempre l'ultima versione, offline usa la cache
+// Network-first: online prende sempre l'ultima versione, offline usa la cache.
+// Solo file dello stesso sito: i dati del database non vengono mai messi in cache.
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+  if (new URL(e.request.url).origin !== self.location.origin) return;
   e.respondWith(
     fetch(e.request)
       .then((res) => {
