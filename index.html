@@ -90,7 +90,10 @@ tr.me td.l{color:#93c5fd;font-weight:700}
 .nt.promemoria{background:#1e3a8a;color:#93c5fd}.nt.info{background:#374151;color:#d1d5db}.nt.importante{background:#7f1d1d;color:#fca5a5}
 .ntext{white-space:pre-wrap;font-size:14px;margin-top:6px;word-break:break-word;line-height:1.4}
 .card.exp{opacity:.5}
-header{padding:8px 12px;min-height:48px}
+header{padding:8px 52px;min-height:48px;position:sticky}
+.gear{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:22px;text-decoration:none;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:10px}
+.gear.on{background:#1d4ed8}
+.setsec{font-size:15px;color:#e5e7eb;margin:20px 0 8px;font-weight:700}
 .tsel{background:#111827;color:#fff;font-size:17px;font-weight:700;border:1px solid #374151;border-radius:8px;padding:6px 8px;max-width:78vw}
 .tsel:focus{outline:none;border-color:var(--blue)}
 select.fsel{background:var(--card2);border:1px solid #4b5563;border-radius:8px;color:var(--txt);padding:9px;font-size:16px;width:100%;min-height:44px;margin:4px 0 12px}
@@ -105,7 +108,7 @@ label.f{display:block;font-size:12px;color:var(--mut);margin:8px 0 3px}
 </style>
 </head>
 <body>
-<header><div class="row" style="justify-content:center;gap:6px"><span style="font-size:20px">⚽</span><select id="tsel" class="tsel" onchange="pickTorneo(this.value)"></select></div></header>
+<header><div class="row" style="justify-content:center;gap:6px"><span style="font-size:20px">⚽</span><select id="tsel" class="tsel" onchange="pickTorneo(this.value)"></select></div><a href="#/impostazioni" id="gear" class="gear" aria-label="Impostazioni">⚙️</a></header>
 <nav id="nav">
   <a href="#/calendario" data-t="calendario">Calendario</a>
   <a href="#/classifica" data-t="classifica">Classifica</a>
@@ -240,8 +243,10 @@ function route(){
   else if(name==='partita') vPartita(+arg);
   else if(name==='tornei') vTornei();
   else if(name==='avvisi') vAvvisi();
+  else if(name==='impostazioni') vImpostazioni();
   else vCalendario();
   renderTsel();
+  document.getElementById('gear').classList.toggle('on', name==='impostazioni' || name==='tornei');
   window.scrollTo(0,0);
 }
 window.addEventListener('hashchange', route);
@@ -685,7 +690,7 @@ async function fbSave(){
   const old = fbCfg(); if(old.authBase) c.authBase = old.authBase;
   localStorage.setItem(LS_F, JSON.stringify(c)); fbTok = null;
   st.className='status'; st.textContent='Verifico…';
-  try{ await fbReq('GET','families'); if(c.vapid) await fbReq('PUT','config/vapid', c.vapid); st.className='status ok'; st.textContent='✓ Collegato. Ora pubblica i bambini e le partite.'; setTimeout(vRosa,900); }
+  try{ await fbReq('GET','families'); if(c.vapid) await fbReq('PUT','config/vapid', c.vapid); st.className='status ok'; st.textContent='✓ Collegato. Ora pubblica i bambini e le partite.'; setTimeout(route,900); }
   catch(e){ st.className='status ko'; st.textContent='✗ '+e.message; }
 }
 async function fbPublish(){
@@ -765,7 +770,7 @@ const linkify = t => esc(t).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" targe
 const fmtTs = iso => { try{ return new Date(iso).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } };
 let newsCache = null, nEdit = null;
 function vAvvisi(){
-  if(!fbReady()){ view.innerHTML = `<h2>Avvisi ai genitori</h2><div class="card empty-msg">Per mandare avvisi ai genitori collega prima il database<br>(Rosa → Collegamento al database).</div>`; return; }
+  if(!fbReady()){ view.innerHTML = `<h2>Avvisi ai genitori</h2><div class="card empty-msg">Per mandare avvisi ai genitori collega prima il database<br>(⚙️ Impostazioni → Collegamento al database).</div>`; return; }
   view.innerHTML = `<h2>Avvisi ai genitori</h2><div id="nform"></div><h3>Avvisi pubblicati</h3><div id="nlist"><div class="small ctr">Caricamento…</div></div>`;
   renderNForm();
   loadNews();
@@ -836,7 +841,7 @@ async function delNews(id){
 /* ================= TORNEI ================= */
 let tEdit = null;
 function vTornei(){
-  let h = `<h2>Tornei</h2>`;
+  let h = `<div class="row" style="margin-bottom:8px"><a class="btn sm" href="#/impostazioni">← Impostazioni</a></div><h2>Tornei</h2>`;
   if(tEdit){
     const t = tEdit==='new' ? {name:'', me:ME, teams:[ME], q:4} : tdata.list.find(x => x.id===tEdit);
     h += `<div class="card"><h3 style="margin-top:0;color:#fff">${tEdit==='new'?'Nuovo torneo':'Modifica torneo'}</h3>
@@ -908,10 +913,16 @@ function vRosa(){
       <div class="row"><button class="btn sm" onclick="editPlayer('${p.id}')">✏️</button><button class="btn sm danger" onclick="delPlayer('${p.id}')">🗑</button></div></div>
       <div class="small" style="margin-top:6px">Presenze: ${n}/${recorded.length}</div><div class="bar"><div style="width:${pct}%"></div></div></div>`;
   });
-  h += fbLinks();
-  if(fbReady() && fbCfg().vapid) h += `<h3>Notifiche</h3><div class="card" id="pushbox"><div class="small">Caricamento…</div></div>`;
-  h += fbConfig();
-  h += `<h3>Backup dati</h3><div class="card stack"><div class="small">I dati sono salvati su questo dispositivo. Esporta un backup per non perderli o per portarli su un altro telefono.</div>
+  h += fbReady() ? fbLinks() : `<div class="card small" style="margin-top:14px">Per mandare ai genitori il link personale per le presenze, collega il database in <a href="#/impostazioni" style="color:#60a5fa">⚙️ Impostazioni</a>.</div>`;
+  view.innerHTML = h;
+}
+function vImpostazioni(){
+  let h = `<h2>⚙️ Impostazioni</h2>
+  <div class="setsec">Tornei</div>
+  <div class="card"><div class="row between"><div><b>${esc(T.name)}</b><div class="small">${tdata.list.length===1?'1 torneo salvato':tdata.list.length+' tornei salvati'}</div></div><a class="btn sm primary" href="#/tornei">Gestisci tornei</a></div></div>
+  <div class="setsec">Collegamento genitori</div>` + fbConfig();
+  if(fbReady() && fbCfg().vapid) h += `<div class="setsec">Notifiche</div><div class="card" id="pushbox"><div class="small">Caricamento…</div></div>`;
+  h += `<div class="setsec">Backup dati</div><div class="card stack"><div class="small">I dati sono salvati su questo dispositivo. Esporta un backup ogni tanto per non perderli o per portarli su un altro telefono.</div>
   <button class="btn" style="width:100%" onclick="exportData()">⬇️ Esporta backup</button>
   <button class="btn" style="width:100%" onclick="document.getElementById('imp-file').click()">⬆️ Importa backup</button>
   <input type="file" id="imp-file" accept=".json,application/json" style="display:none" onchange="importData(this.files[0])"></div>`;
