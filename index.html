@@ -674,17 +674,18 @@ function fbConfig(){
   <label class="f">Web API Key</label><input type="text" id="fb-key" value="${esc(c.apiKey||'')}" autocapitalize="off">
   <label class="f">Email allenatore</label><input type="text" id="fb-mail" value="${esc(c.email||'')}" autocapitalize="off">
   <label class="f">Password</label><input type="password" id="fb-pw" value="${esc(c.password||'')}" style="background:var(--card2);border:1px solid #4b5563;border-radius:8px;color:var(--txt);padding:9px;font-size:15px;width:100%">
+  <label class="f">Chiave pubblica notifiche (VAPID, facoltativa: vedi NOTIFICHE.md)</label><input type="text" id="fb-vapid" value="${esc(c.vapid||'')}" autocapitalize="off" placeholder="BEl...">
   <div class="stack" style="margin-top:12px"><button class="btn primary" style="width:100%" onclick="fbSave()">Salva e verifica</button></div>
   <div class="status" id="fb-status"></div></div></details>`;
 }
 async function fbSave(){
   const st = document.getElementById('fb-status');
   const c = {db:document.getElementById('fb-db').value.trim().replace(/\/+$/,''), apiKey:document.getElementById('fb-key').value.trim(),
-    email:document.getElementById('fb-mail').value.trim(), password:document.getElementById('fb-pw').value};
+    email:document.getElementById('fb-mail').value.trim(), password:document.getElementById('fb-pw').value, vapid:document.getElementById('fb-vapid').value.trim()};
   const old = fbCfg(); if(old.authBase) c.authBase = old.authBase;
   localStorage.setItem(LS_F, JSON.stringify(c)); fbTok = null;
   st.className='status'; st.textContent='Verifico…';
-  try{ await fbReq('GET','families'); st.className='status ok'; st.textContent='✓ Collegato. Ora pubblica i bambini e le partite.'; setTimeout(vRosa,900); }
+  try{ await fbReq('GET','families'); if(c.vapid) await fbReq('PUT','config/vapid', c.vapid); st.className='status ok'; st.textContent='✓ Collegato. Ora pubblica i bambini e le partite.'; setTimeout(vRosa,900); }
   catch(e){ st.className='status ko'; st.textContent='✗ '+e.message; }
 }
 async function fbPublish(){
@@ -694,6 +695,68 @@ async function fbPublish(){
 async function copyLink(id){
   const link = parentLink(pById(id));
   try{ await navigator.clipboard.writeText(link); alert('Link copiato'); }catch(e){ prompt('Copia il link:', link); }
+}
+
+/* ===== notifiche push (comune) ===== */
+const b64u = s => { const p = '='.repeat((4 - s.length % 4) % 4); const b = atob((s + p).replace(/-/g,'+').replace(/_/g,'/')); return Uint8Array.from(b, c => c.charCodeAt(0)); };
+async function sidOf(ep){ const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ep)); return Array.from(new Uint8Array(b)).slice(0,12).map(x => x.toString(16).padStart(2,'0')).join(''); }
+const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isStandalone = () => (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+const swReady = () => Promise.race([navigator.serviceWorker.ready, new Promise((_, r) => setTimeout(() => r(new Error('sw')), 6000))]);
+// 'nokey' | 'ios' | 'unsupported' | 'denied' | 'on' | 'off'
+async function pushState(vapid){
+  if(!vapid) return 'nokey';
+  if(!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return (isIOS() && !isStandalone()) ? 'ios' : 'unsupported';
+  if(Notification.permission === 'denied') return 'denied';
+  try{ const reg = await swReady(); const s = await reg.pushManager.getSubscription(); return (s && Notification.permission === 'granted') ? 'on' : 'off'; }catch(e){ return 'off'; }
+}
+async function subscribePush(vapid){
+  const perm = await Notification.requestPermission();
+  if(perm !== 'granted') throw new Error(perm === 'denied' ? 'denied' : 'dismissed');
+  const reg = await swReady();
+  let sub = await reg.pushManager.getSubscription();
+  if(!sub) sub = await reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: b64u(vapid)});
+  const j = sub.toJSON();
+  return {sid: await sidOf(j.endpoint), rec: {endpoint: j.endpoint, keys: j.keys, url: location.href.split('#')[0], date: new Date().toISOString()}};
+}
+async function unsubscribePush(){
+  const reg = await swReady(); const s = await reg.pushManager.getSubscription(); if(!s) return null;
+  const sid = await sidOf(s.endpoint); await s.unsubscribe(); return sid;
+}
+const IOS_HELP = 'Su iPhone le notifiche funzionano solo dall\'icona sulla schermata Home: tocca <b>Condividi</b> (il quadrato con la freccia) → <b>Aggiungi alla schermata Home</b>, poi apri la pagina da quell\'icona e attiva le notifiche.';
+
+let pushBusy = false;
+async function renderPushBox(){
+  const el = document.getElementById('pushbox'); if(!el) return;
+  const vapid = fbCfg().vapid, st = await pushState(vapid);
+  let cfg = {}; try{ cfg = (await fbReq('GET','config/notify')) || {}; }catch(e){}
+  const chk = (k, label) => `<label class="row" style="gap:8px;font-size:14px;margin-top:8px"><input type="checkbox" id="nt-${k}" ${cfg[k]!==false?'checked':''} onchange="saveNotifyCfg()" style="width:20px;height:20px;flex:none"> ${label}</label>`;
+  let top = '';
+  if(st==='nokey') top = `<div class="small">Per attivarle inserisci la <b>Chiave pubblica notifiche</b> nel Collegamento al database (guida: NOTIFICHE.md).</div>`;
+  else if(st==='ios') top = `<div class="small">${IOS_HELP}</div>`;
+  else if(st==='unsupported') top = `<div class="small">Questo browser non supporta le notifiche.</div>`;
+  else if(st==='denied') top = `<div class="small" style="color:#fca5a5">Hai bloccato le notifiche per questa app: riattivale dalle impostazioni del telefono o del browser.</div>`;
+  else if(st==='on') top = `<div class="row between"><b style="color:#4ade80">🔔 Attive su questo telefono</b><button class="btn sm" onclick="disablePushC()">Disattiva</button></div>`;
+  else top = `<button class="btn primary" style="width:100%" onclick="enablePushC()">🔔 Attiva le notifiche su questo telefono</button>`;
+  el.innerHTML = top + `<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:4px">
+    ${chk('each','A me: ogni volta che un genitore risponde (e quando si raggiunge il minimo)')}
+    ${chk('summary','A me: riepilogo la sera prima della partita (ore 18)')}
+    ${chk('remind','Ai genitori: promemoria la sera prima se non hanno ancora risposto')}
+    <div class="small" style="margin-top:6px">Gli avvisi arrivano ai genitori quando pubblichi con "Invia notifica".</div></div>`;
+}
+async function saveNotifyCfg(){
+  const v = k => document.getElementById('nt-'+k).checked;
+  try{ await fbReq('PUT','config/notify',{each:v('each'), summary:v('summary'), remind:v('remind')}); }catch(e){ alert('Impostazione non salvata: '+e.message); }
+}
+async function enablePushC(){
+  if(pushBusy) return; pushBusy = true;
+  try{ const {sid, rec} = await subscribePush(fbCfg().vapid); await fbReq('PUT','push/coach/'+sid, rec); }
+  catch(e){ if(e.message!=='dismissed' && e.message!=='denied') alert('Non riesco ad attivare le notifiche: '+e.message); }
+  pushBusy = false; renderPushBox();
+}
+async function disablePushC(){
+  try{ const sid = await unsubscribePush(); if(sid) await fbReq('DELETE','push/coach/'+sid); }catch(e){ alert('Errore: '+e.message); }
+  renderPushBox();
 }
 
 /* ================= AVVISI ================= */
@@ -721,6 +784,7 @@ function renderNForm(n){
     <label class="f">Testo</label><textarea id="n-text" rows="5" placeholder="Scrivi qui il messaggio per i genitori">${esc(n.text)}</textarea>
     <label class="f">Visibile fino al (facoltativo: dopo questa data sparisce)</label><input type="date" id="n-until" value="${n.until ? toIso(parseDate(n.until)) : ''}" style="background:var(--card2);border:1px solid #4b5563;border-radius:8px;color:var(--txt);padding:9px;font-size:16px;width:100%;color-scheme:dark;min-height:44px">
     <label class="row" style="margin-top:10px;gap:8px;font-size:14px"><input type="checkbox" id="n-pin" ${n.pin?'checked':''} style="width:20px;height:20px"> In evidenza (sempre in cima alla pagina dei genitori)</label>
+    <label class="row" style="margin-top:10px;gap:8px;font-size:14px"><input type="checkbox" id="n-push" ${nEdit?'':'checked'} style="width:20px;height:20px"> 🔔 Invia anche una notifica ai genitori${nEdit?' (di nuovo)':''}</label>
     <div class="stack" style="margin-top:12px"><button class="btn primary" style="width:100%" onclick="saveNews()">${nEdit?'Salva modifiche':'📣 Pubblica per i genitori'}</button>
     ${nEdit?`<button class="btn" style="width:100%" onclick="nEdit=null;renderNForm()">Annulla</button>`:''}</div>
     <div class="small">Gli avvisi si leggono dal link personale dei genitori. Non scrivere dati riservati.</div></div>`;
@@ -743,7 +807,8 @@ async function saveNews(){
   const id = nEdit || ('n' + Date.now().toString(36));
   const old = (newsCache||{})[id] || {};
   const data = {type:document.getElementById('n-type').value, title, text, until:fromIso(document.getElementById('n-until').value),
-    pin:document.getElementById('n-pin').checked, date: old.date || new Date().toISOString(), upd: new Date().toISOString()};
+    pin:document.getElementById('n-pin').checked, date: old.date || new Date().toISOString(), upd: new Date().toISOString(),
+    push: document.getElementById('n-push').checked ? new Date().toISOString() : (old.push || null)};
   try{ await fbReq('PUT','news/'+id, data); (newsCache = newsCache || {})[id] = data; nEdit = null; renderNForm(); renderNList(); }
   catch(e){ alert('Avviso non pubblicato: ' + e.message); }
 }
@@ -755,7 +820,7 @@ function renderNList(){
   arr.sort((a,b) => (nExpired(a)-nExpired(b)) || ((b.pin?1:0)-(a.pin?1:0)) || String(b.date).localeCompare(String(a.date)));
   el.innerHTML = arr.map(n => {
     const wa = 'https://wa.me/?text=' + encodeURIComponent((n.title ? '*'+n.title+'*\n\n' : '') + (n.text||''));
-    return `<div class="card ${nExpired(n)?'exp':''}"><div class="row between"><span class="nt ${esc(n.type)}">${NTYPES[n.type]||''}</span><span class="small">${n.pin?'📌 ':''}${fmtTs(n.date)}${nExpired(n)?' · scaduto':n.until?' · fino al '+esc(n.until):''}</span></div>
+    return `<div class="card ${nExpired(n)?'exp':''}"><div class="row between"><span class="nt ${esc(n.type)}">${NTYPES[n.type]||''}</span><span class="small">${n.push?'🔔 ':''}${n.pin?'📌 ':''}${fmtTs(n.date)}${nExpired(n)?' · scaduto':n.until?' · fino al '+esc(n.until):''}</span></div>
       ${n.title?`<div style="font-weight:700;margin-top:6px">${esc(n.title)}</div>`:''}<div class="ntext">${linkify(n.text||'')}</div>
       <div class="row" style="margin-top:8px;flex-wrap:wrap"><a class="btn sm primary" target="_blank" rel="noopener" href="${wa}">Inoltra su WhatsApp</a>
       <button class="btn sm" onclick="editNews('${n.id}')">✏️</button><button class="btn sm danger" onclick="delNews('${n.id}')">🗑</button></div></div>`;
@@ -844,12 +909,14 @@ function vRosa(){
       <div class="small" style="margin-top:6px">Presenze: ${n}/${recorded.length}</div><div class="bar"><div style="width:${pct}%"></div></div></div>`;
   });
   h += fbLinks();
+  if(fbReady()) h += `<h3>Notifiche</h3><div class="card" id="pushbox"><div class="small">Caricamento…</div></div>`;
   h += fbConfig();
   h += `<h3>Backup dati</h3><div class="card stack"><div class="small">I dati sono salvati su questo dispositivo. Esporta un backup per non perderli o per portarli su un altro telefono.</div>
   <button class="btn" style="width:100%" onclick="exportData()">⬇️ Esporta backup</button>
   <button class="btn" style="width:100%" onclick="document.getElementById('imp-file').click()">⬆️ Importa backup</button>
   <input type="file" id="imp-file" accept=".json,application/json" style="display:none" onchange="importData(this.files[0])"></div>`;
   view.innerHTML = h;
+  if(fbReady()) renderPushBox();
 }
 function addPlayer(){
   const n = document.getElementById('np-name').value.trim(); if(!n) return;
@@ -870,7 +937,7 @@ function delPlayer(id){
   app.players = app.players.filter(x=>x.id!==id);
   Object.values(app.att).forEach(a => delete a[id]);
   Object.values(app.lineup).forEach(L => L.slots = L.slots.map(s => s===id?null:s));
-  if(p.token && fbReady()){ fbReq('DELETE','families/'+p.token).catch(()=>{}); fbReq('DELETE','rsvp/'+p.token).catch(()=>{}); }
+  if(p.token && fbReady()){ fbReq('DELETE','families/'+p.token).catch(()=>{}); fbReq('DELETE','rsvp/'+p.token).catch(()=>{}); fbReq('DELETE','push/fam/'+p.token).catch(()=>{}); }
   saveA(); vRosa();
 }
 function exportData(){

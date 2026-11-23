@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex,nofollow">
 <title>Presenze e partite</title>
+<link rel="manifest" href="manifest-genitori.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#1f2937">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Presenze">
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:#111827;color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
@@ -84,6 +90,10 @@ tr.q{background:#14532d44}tr.e{background:#7f1d1d44}tr.me td.l{color:#93c5fd;fon
 .card.imp{border-color:#b91c1c}
 .card.pin{border-color:#ca8a04;background:#422006}
 .banner{display:block;width:100%;text-align:left;background:#1e3a8a;border:1px solid #2563eb;color:#fff;border-radius:10px;padding:11px 12px;font-size:15px;margin-bottom:12px;cursor:pointer}
+.pbox{background:#0f172a;border:1px solid #2563eb;border-radius:12px;padding:12px;margin-bottom:12px;font-size:14px;line-height:1.45}
+.pbox .pb2{display:flex;gap:8px;margin-top:10px}
+.pbox button{flex:1;padding:11px;border-radius:9px;border:0;font-size:15px;font-weight:700;cursor:pointer;color:#fff;background:#2563eb}
+.pbox button.sec{background:#374151;flex:none;padding:11px 14px}
 .foot{text-align:center;font-size:12px;color:#6b7280;margin-top:18px}
 </style>
 </head>
@@ -97,8 +107,9 @@ const q = new URLSearchParams(location.search);
 const DB = (q.get('d')||'').replace(/\/+$/,'');
 const TOK = q.get('f')||'';
 const main = document.getElementById('main');
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let fam = null, rsvp = {}, votes = {}, news = {}, pub = null, tab = 'pres', calFilter = 'all';
+let vapid = null, pState = 'nokey', fam = null, rsvp = {}, votes = {}, news = {}, pub = null, tab = 'pres', calFilter = 'all';
 let ME = 'Sam 89', selT = null;
 const MIN = 5; // minimo di bambini per giocare
 
@@ -117,6 +128,10 @@ async function init(){
     await loadRsvp();
     try{ const pr = await fetch(`${DB}/public.json`); pub = pr.ok ? await pr.json() : null; }catch(e){ pub = null; }
     await loadVotes(); await loadNews();
+    try{ const vr = await fetch(`${DB}/config/vapid.json`); vapid = vr.ok ? await vr.json() : null; }catch(e){}
+    pState = await pushState(vapid);
+    if(location.hash === '#avvisi') tab = 'avv';
+    window.addEventListener('hashchange', () => { if(location.hash === '#avvisi'){ tab = 'avv'; refreshAll(); } });
     render();
     setInterval(refreshAll, 10*60*1000);
     document.addEventListener('visibilitychange', () => { if(!document.hidden) refreshAll(); });
@@ -163,6 +178,7 @@ function renderPres(){
   const u = unread(); if(u) h += `<button class="banner" onclick="setTab('avv')">📣 ${u===1?'C\'è 1 nuovo avviso':'Ci sono '+u+' nuovi avvisi'} — tocca per leggere</button>`;
   liveNews().filter(n => n.pin).forEach(n => { h += newsCard(n, false); });
   h += `<div class="hello">Presenza di <b>${esc(fam.name)}</b></div>`;
+  h += pushBox(true);
   if(!ms.length){ h += '<div class="msg">Non ci sono partite in programma.</div>'; }
   else {
     h += matchCard(ms[0], true);
@@ -254,11 +270,67 @@ function renderNews(){
   if(!l.length) return '<div class="msg">Nessun avviso al momento.</div>';
   return l.map(n => newsCard(n, !s || String(n.date) > s || String(n.upd||'') > s)).join('');
 }
+/* ===== notifiche push (comune) ===== */
+const b64u = s => { const p = '='.repeat((4 - s.length % 4) % 4); const b = atob((s + p).replace(/-/g,'+').replace(/_/g,'/')); return Uint8Array.from(b, c => c.charCodeAt(0)); };
+async function sidOf(ep){ const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ep)); return Array.from(new Uint8Array(b)).slice(0,12).map(x => x.toString(16).padStart(2,'0')).join(''); }
+const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isStandalone = () => (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+const swReady = () => Promise.race([navigator.serviceWorker.ready, new Promise((_, r) => setTimeout(() => r(new Error('sw')), 6000))]);
+// 'nokey' | 'ios' | 'unsupported' | 'denied' | 'on' | 'off'
+async function pushState(vapid){
+  if(!vapid) return 'nokey';
+  if(!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return (isIOS() && !isStandalone()) ? 'ios' : 'unsupported';
+  if(Notification.permission === 'denied') return 'denied';
+  try{ const reg = await swReady(); const s = await reg.pushManager.getSubscription(); return (s && Notification.permission === 'granted') ? 'on' : 'off'; }catch(e){ return 'off'; }
+}
+async function subscribePush(vapid){
+  const perm = await Notification.requestPermission();
+  if(perm !== 'granted') throw new Error(perm === 'denied' ? 'denied' : 'dismissed');
+  const reg = await swReady();
+  let sub = await reg.pushManager.getSubscription();
+  if(!sub) sub = await reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: b64u(vapid)});
+  const j = sub.toJSON();
+  return {sid: await sidOf(j.endpoint), rec: {endpoint: j.endpoint, keys: j.keys, url: location.href.split('#')[0], date: new Date().toISOString()}};
+}
+async function unsubscribePush(){
+  const reg = await swReady(); const s = await reg.pushManager.getSubscription(); if(!s) return null;
+  const sid = await sidOf(s.endpoint); await s.unsubscribe(); return sid;
+}
+const IOS_HELP = 'Su iPhone le notifiche funzionano solo dall\'icona sulla schermata Home: tocca <b>Condividi</b> (il quadrato con la freccia) → <b>Aggiungi alla schermata Home</b>, poi apri la pagina da quell\'icona e attiva le notifiche.';
+
+const PNO = 'wcPushNo_' + TOK;
+function pushBox(compact){
+  if(pState === 'nokey') return '';
+  if(compact){ let no = false; try{ no = !!localStorage.getItem(PNO); }catch(e){} if(no || !['off','ios'].includes(pState)) return ''; }
+  const later = compact ? `<button class="sec" onclick="try{localStorage.setItem(PNO,'1')}catch(e){};render()">Non ora</button>` : '';
+  if(pState === 'ios') return `<div class="pbox">🔔 Vuoi un avviso quando c'è un nuovo messaggio o manca la tua risposta?<br>${IOS_HELP}${compact?`<div class="pb2">${later}</div>`:''}</div>`;
+  if(pState === 'off') return `<div class="pbox">🔔 Ricevi un avviso quando c'è un nuovo messaggio o manca la tua risposta.<div class="pb2"><button onclick="enablePushP()">Attiva le notifiche</button>${later}</div></div>`;
+  if(pState === 'on') return `<div class="pbox" style="border-color:#16a34a">🔔 Notifiche attive su questo telefono.<div class="pb2"><button class="sec" onclick="disablePushP()">Disattiva</button></div></div>`;
+  if(pState === 'denied') return `<div class="pbox" style="border-color:#b91c1c">Hai bloccato le notifiche per questa pagina. Per riceverle riattivale dalle impostazioni del telefono o del browser.</div>`;
+  return `<div class="pbox" style="border-color:#374151;color:#9ca3af">Su questo browser le notifiche non sono disponibili.</div>`;
+}
+async function enablePushP(){
+  try{
+    const {sid, rec} = await subscribePush(vapid);
+    const r = await fetch(`${DB}/push/fam/${TOK}/${sid}.json`, {method:'PUT', body: JSON.stringify(rec)});
+    if(!r.ok) throw new Error('salvataggio');
+    pState = 'on'; toast('Notifiche attive ✓');
+  }catch(e){
+    if(e.message === 'denied') pState = 'denied';
+    else if(e.message !== 'dismissed') toast('Non riesco ad attivare le notifiche', true);
+  }
+  render();
+}
+async function disablePushP(){
+  try{ const sid = await unsubscribePush(); if(sid) await fetch(`${DB}/push/fam/${TOK}/${sid}.json`, {method:'DELETE'}); pState = 'off'; toast('Notifiche disattivate'); }
+  catch(e){ toast('Errore, riprova', true); }
+  render();
+}
 function setTab(t){ tab = t; render(); window.scrollTo(0,0); }
 function render(){
   const u = unread();
   const tabs = `<div class="tabs"><button class="${tab==='pres'?'on':''}" onclick="setTab('pres')">Presenza</button><button class="${tab==='avv'?'on':''}" onclick="setTab('avv')">Avvisi${u&&tab!=='avv'?`<span class="newb">${u}</span>`:''}</button><button class="${tab==='cal'?'on':''}" onclick="setTab('cal')">Calendario</button><button class="${tab==='cla'?'on':''}" onclick="setTab('cla')">Classifica</button></div>`;
-  main.innerHTML = tabs + (tab==='cal' ? renderCal() : tab==='cla' ? renderClass() : tab==='avv' ? renderNews() : renderPres());
+  main.innerHTML = tabs + (tab==='cal' ? renderCal() : tab==='cla' ? renderClass() : tab==='avv' ? pushBox(false) + renderNews() : renderPres());
   if(tab==='avv') markSeen();
 }
 let pending = null;
