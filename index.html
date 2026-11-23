@@ -784,7 +784,7 @@ function renderNForm(n){
     <label class="f">Testo</label><textarea id="n-text" rows="5" placeholder="Scrivi qui il messaggio per i genitori">${esc(n.text)}</textarea>
     <label class="f">Visibile fino al (facoltativo: dopo questa data sparisce)</label><input type="date" id="n-until" value="${n.until ? toIso(parseDate(n.until)) : ''}" style="background:var(--card2);border:1px solid #4b5563;border-radius:8px;color:var(--txt);padding:9px;font-size:16px;width:100%;color-scheme:dark;min-height:44px">
     <label class="row" style="margin-top:10px;gap:8px;font-size:14px"><input type="checkbox" id="n-pin" ${n.pin?'checked':''} style="width:20px;height:20px"> In evidenza (sempre in cima alla pagina dei genitori)</label>
-    <label class="row" style="margin-top:10px;gap:8px;font-size:14px"><input type="checkbox" id="n-push" ${nEdit?'':'checked'} style="width:20px;height:20px"> 🔔 Invia anche una notifica ai genitori${nEdit?' (di nuovo)':''}</label>
+    ${!fbCfg().vapid ? '' : `<label class="row" style="margin-top:10px;gap:8px;font-size:14px"><input type="checkbox" id="n-push" ${nEdit?'':'checked'} style="width:20px;height:20px"> 🔔 Invia anche una notifica ai genitori${nEdit?' (di nuovo)':''}</label>`}
     <div class="stack" style="margin-top:12px"><button class="btn primary" style="width:100%" onclick="saveNews()">${nEdit?'Salva modifiche':'📣 Pubblica per i genitori'}</button>
     ${nEdit?`<button class="btn" style="width:100%" onclick="nEdit=null;renderNForm()">Annulla</button>`:''}</div>
     <div class="small">Gli avvisi si leggono dal link personale dei genitori. Non scrivere dati riservati.</div></div>`;
@@ -808,7 +808,7 @@ async function saveNews(){
   const old = (newsCache||{})[id] || {};
   const data = {type:document.getElementById('n-type').value, title, text, until:fromIso(document.getElementById('n-until').value),
     pin:document.getElementById('n-pin').checked, date: old.date || new Date().toISOString(), upd: new Date().toISOString(),
-    push: document.getElementById('n-push').checked ? new Date().toISOString() : (old.push || null)};
+    push: (document.getElementById('n-push') && document.getElementById('n-push').checked) ? new Date().toISOString() : (old.push || null)};
   try{ await fbReq('PUT','news/'+id, data); (newsCache = newsCache || {})[id] = data; nEdit = null; renderNForm(); renderNList(); }
   catch(e){ alert('Avviso non pubblicato: ' + e.message); }
 }
@@ -909,14 +909,14 @@ function vRosa(){
       <div class="small" style="margin-top:6px">Presenze: ${n}/${recorded.length}</div><div class="bar"><div style="width:${pct}%"></div></div></div>`;
   });
   h += fbLinks();
-  if(fbReady()) h += `<h3>Notifiche</h3><div class="card" id="pushbox"><div class="small">Caricamento…</div></div>`;
+  if(fbReady() && fbCfg().vapid) h += `<h3>Notifiche</h3><div class="card" id="pushbox"><div class="small">Caricamento…</div></div>`;
   h += fbConfig();
   h += `<h3>Backup dati</h3><div class="card stack"><div class="small">I dati sono salvati su questo dispositivo. Esporta un backup per non perderli o per portarli su un altro telefono.</div>
   <button class="btn" style="width:100%" onclick="exportData()">⬇️ Esporta backup</button>
   <button class="btn" style="width:100%" onclick="document.getElementById('imp-file').click()">⬆️ Importa backup</button>
   <input type="file" id="imp-file" accept=".json,application/json" style="display:none" onchange="importData(this.files[0])"></div>`;
   view.innerHTML = h;
-  if(fbReady()) renderPushBox();
+  if(fbReady() && fbCfg().vapid) renderPushBox();
 }
 function addPlayer(){
   const n = document.getElementById('np-name').value.trim(); if(!n) return;
