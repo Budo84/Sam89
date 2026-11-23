@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Winter Cup 2026 - Sam 89</title>
+<title>Sam 89 - Tornei</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -86,6 +86,10 @@ tr.me td.l{color:#93c5fd;font-weight:700}
 .bar>div{height:100%;background:#22c55e}
 .empty-msg{text-align:center;color:var(--mut);padding:24px 8px}
 .ctr{text-align:center}
+header{padding:8px 12px;min-height:48px}
+.tsel{background:#111827;color:#fff;font-size:17px;font-weight:700;border:1px solid #374151;border-radius:8px;padding:6px 8px;max-width:78vw}
+.tsel:focus{outline:none;border-color:var(--blue)}
+select.fsel{background:var(--card2);border:1px solid #4b5563;border-radius:8px;color:var(--txt);padding:9px;font-size:16px;width:100%;min-height:44px;margin:4px 0 12px}
 .nextcard{border:2px solid #3b82f6!important;box-shadow:0 0 0 4px #3b82f633;padding:14px 12px;margin-bottom:16px}
 .nlab{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#60a5fa;margin-bottom:6px}
 .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;margin-top:4px}
@@ -97,7 +101,7 @@ label.f{display:block;font-size:12px;color:var(--mut);margin:8px 0 3px}
 </style>
 </head>
 <body>
-<header><h1>⚽ Winter Cup 2026</h1></header>
+<header><div class="row" style="justify-content:center;gap:6px"><span style="font-size:20px">⚽</span><select id="tsel" class="tsel" onchange="pickTorneo(this.value)"></select></div></header>
 <nav id="nav">
   <a href="#/calendario" data-t="calendario">Calendario</a>
   <a href="#/classifica" data-t="classifica">Classifica</a>
@@ -108,14 +112,33 @@ label.f{display:block;font-size:12px;color:var(--mut);margin:8px 0 3px}
 
 <div class="modal" id="modal">
   <div class="box">
-    <h3 style="margin:0 0 4px;color:#fff;font-size:17px">Rimanda partita</h3>
+    <h3 style="margin:0 0 4px;color:#fff;font-size:17px">Modifica partita</h3>
     <p class="small" id="modal-name" style="margin:0 0 12px"></p>
-    <label class="small">Nuova data</label>
-    <input type="date" id="modal-date" style="margin:4px 0 14px;min-height:44px;background:var(--card2);border:1px solid #4b5563;border-radius:8px;color:var(--txt);padding:9px;font-size:16px;width:100%;color-scheme:dark">
+    <label class="small">Casa</label><select id="modal-home" class="fsel"></select>
+    <label class="small">Ospite</label><select id="modal-away" class="fsel"></select>
+    <label class="small">Data</label>
+    <input type="date" id="modal-date" style="margin:4px 0 12px;min-height:44px;background:var(--card2);border:1px solid #4b5563;border-radius:8px;color:var(--txt);padding:9px;font-size:16px;width:100%;color-scheme:dark">
+    <label class="small">Orario</label>
+    <input type="time" id="modal-time" style="margin:4px 0 12px;min-height:44px;background:var(--card2);border:1px solid #4b5563;border-radius:8px;color:var(--txt);padding:9px;font-size:16px;width:100%;color-scheme:dark">
     <div class="stack">
-      <button class="btn primary" style="width:100%" onclick="saveRecupero()">Salva nuova data</button>
-      <button class="btn danger" style="width:100%" onclick="clearRecupero()">Rimuovi recupero</button>
+      <button class="btn primary" style="width:100%" onclick="saveRecupero()">Salva</button>
+      <button class="btn" style="width:100%" id="modal-reset" onclick="clearRecupero()">Torna a data e orario originali</button>
+      <button class="btn danger" style="width:100%" onclick="delMatch()">🗑 Elimina partita</button>
       <button class="btn" style="width:100%" onclick="closeModal()">Annulla</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="addm">
+  <div class="box">
+    <h3 style="margin:0 0 10px;color:#fff;font-size:17px">Aggiungi partita</h3>
+    <label class="small">Casa</label><select id="add-home" style="margin:4px 0 12px;min-height:44px;background:var(--card2);border:1px solid #4b5563;border-radius:8px;color:var(--txt);padding:9px;font-size:16px;width:100%;color-scheme:dark"></select>
+    <label class="small">Ospite</label><select id="add-away" style="margin:4px 0 12px;min-height:44px;background:var(--card2);border:1px solid #4b5563;border-radius:8px;color:var(--txt);padding:9px;font-size:16px;width:100%;color-scheme:dark"></select>
+    <label class="small">Data</label><input type="date" id="add-date" style="margin:4px 0 12px;min-height:44px;background:var(--card2);border:1px solid #4b5563;border-radius:8px;color:var(--txt);padding:9px;font-size:16px;width:100%;color-scheme:dark">
+    <label class="small">Orario</label><input type="time" id="add-time" style="margin:4px 0 12px;min-height:44px;background:var(--card2);border:1px solid #4b5563;border-radius:8px;color:var(--txt);padding:9px;font-size:16px;width:100%;color-scheme:dark">
+    <div class="stack">
+      <button class="btn primary" style="width:100%" onclick="saveAdd()">Aggiungi</button>
+      <button class="btn" style="width:100%" onclick="document.getElementById('addm').classList.remove('on')">Annulla</button>
     </div>
   </div>
 </div>
@@ -124,9 +147,8 @@ label.f{display:block;font-size:12px;color:var(--mut);margin:8px 0 3px}
 if ('serviceWorker' in navigator) { window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{})); }
 
 /* ================= DATI ================= */
-const ME = 'Sam 89';
 const MIN = 5; // minimo di bambini per giocare
-const TEAMS = ['Cr Sport','Calcutta Team','San Vincenzo De Paoli','Soccer Sgl','Sam 89','Atl Lodigiani'];
+const TEAMS0 = ['Cr Sport','Calcutta Team','San Vincenzo De Paoli','Soccer Sgl','Sam 89','Atl Lodigiani'];
 const initialMatches = [
  {id:1,date:"17/10/2026",time:"15:00",home:"Cr Sport",away:"Calcutta Team",s1:"3",s2:"1",newDate:""},
  {id:2,date:"17/10/2026",time:"16:00",home:"Soccer Sgl",away:"San Vincenzo De Paoli",s1:"2",s2:"1",newDate:""},
@@ -157,20 +179,43 @@ const initialMatches = [
  {id:27,date:"03/12/2026",time:"17:15",home:"Sam 89",away:"Calcutta Team",s1:"",s2:"",newDate:""},
  {id:28,date:"03/12/2026",time:"18:15",home:"Atl Lodigiani",away:"Sam 89",s1:"",s2:"",newDate:""},
  {id:29,date:"05/12/2026",time:"17:00",home:"Calcutta Team",away:"Soccer Sgl",s1:"",s2:"",newDate:""},
- {id:30,date:"05/12/2026",time:"18:00",home:"Sam 89",away:"Cr Sport",s1:"",s2:"",newDate:""}
+ {id:30,date:"05/12/2026",time:"18:00",home:"Sam 89",away:"Cr Sport",s1:"",s2:"",newDate:""},
+ {id:31,date:"26/11/2026",time:"17:15",home:"Sam 89",away:"Soccer Sgl",s1:"",s2:"",newDate:""}
 ];
 
 const LS_M = 'winterCupData26';      // stesso nome della versione precedente: i risultati già inseriti restano
 const LS_A = 'winterCupApp26';       // rosa, presenze, formazioni
 function load(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
-let matches = load(LS_M) || JSON.parse(JSON.stringify(initialMatches));
+const LS_T = 'wcTornei';             // tutti i tornei (squadre + calendario + risultati)
 let app = load(LS_A) || {};
 app.players = app.players || []; app.att = app.att || {}; app.lineup = app.lineup || {}; app.man = app.man || {};
-function saveM(){ localStorage.setItem(LS_M, JSON.stringify(matches)); }
+function legacyTorneo(ms){
+  return {id:'wc26', name:'Winter Cup 2026', me:'Sam 89', teams:TEAMS0.slice(), q:4, matches:ms,
+    events:[{date:'10/12/2026',title:'Fasi Finali',detail:'Semifinali (se qualificati)'},{date:'12/12/2026',title:'Fasi Finali',detail:'Finali / Finalina'}]};
+}
+let tdata = load(LS_T);
+if(!tdata || !Array.isArray(tdata.list) || !tdata.list.length){
+  // primo avvio con i tornei: il campionato già inserito diventa "Winter Cup 2026"
+  const legacy = load(LS_M) || JSON.parse(JSON.stringify(initialMatches));
+  if(!localStorage.getItem('wcMig1')){
+    if(!legacy.some(m => m.id===31)) legacy.push({id:31,date:"26/11/2026",time:"17:15",home:"Sam 89",away:"Soccer Sgl",s1:"",s2:"",newDate:""});
+    localStorage.setItem('wcMig1','1');
+  }
+  tdata = {cur:'wc26', list:[legacyTorneo(legacy)]};
+  localStorage.setItem(LS_T, JSON.stringify(tdata));
+  setTimeout(() => autoPublish(), 0);
+}
+let T, ME, TEAMS, matches;
+function setCur(id){ T = tdata.list.find(t => t.id===id) || tdata.list[0]; tdata.cur = T.id; ME = T.me; TEAMS = T.teams; matches = T.matches; }
+setCur(tdata.cur);
+function saveM(){ localStorage.setItem(LS_T, JSON.stringify(tdata)); }
+const allM = () => tdata.list.flatMap(t => t.matches);
+const tOf = m => tdata.list.find(t => t.matches.includes(m)) || T;
+const findM = id => allM().find(m => m.id === id);
 function saveA(){ localStorage.setItem(LS_A, JSON.stringify(app)); }
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const isSam = m => m.home === ME || m.away === ME;
+const isSam = m => { const t = tOf(m); return m.home === t.me || m.away === t.me; };
 const view = document.getElementById('view');
 const pad = n => String(n).padStart(2,'0');
 const fmtDate = d => pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear();
@@ -188,10 +233,21 @@ function route(){
   else if(name==='impegni') vImpegni();
   else if(name==='rosa') vRosa();
   else if(name==='partita') vPartita(+arg);
+  else if(name==='tornei') vTornei();
   else vCalendario();
+  renderTsel();
   window.scrollTo(0,0);
 }
 window.addEventListener('hashchange', route);
+function renderTsel(){
+  document.getElementById('tsel').innerHTML = tdata.list.map(t => `<option value="${esc(t.id)}" ${t.id===T.id?'selected':''}>${esc(t.name)}</option>`).join('')
+    + '<option value="__manage">⚙️ Gestisci tornei…</option>';
+}
+function pickTorneo(v){
+  if(v==='__manage'){ renderTsel(); location.hash = '#/tornei'; return; }
+  setCur(v); saveM();
+  const h = location.hash; if(h.indexOf('#/partita/')===0 || h==='#/tornei') location.hash = '#/calendario'; else route();
+}
 
 /* ================= CALENDARIO ================= */
 let calFilter = 'all';
@@ -199,7 +255,6 @@ function setFilter(f){ calFilter = f; vCalendario(true); }
 function presentCount(id){ const a = app.att[id]; return a ? Object.keys(a).length : null; }
 const sortKey = m => { const d = parseDate(effDate(m)); return (d ? d.getTime() : 0) + (parseInt((m.time||'0:0').replace(':','')) || 0); };
 function calCard(m, big){
-  const idx = matches.indexOf(m);
   const dt = m.newDate ? `<span class="old">${m.date}</span><span class="new">${m.newDate}</span>` : m.date;
   const pc = presentCount(m.id);
   const dd = parseDate(effDate(m)), tdy = new Date(); tdy.setHours(0,0,0,0);
@@ -210,14 +265,14 @@ function calCard(m, big){
   }
   return `<div class="card ${isSam(m)?'sam':''} ${big?'nextcard':''}">
     ${big?'<div class="nlab">Prossimo impegno</div>':''}
-    <div class="row between small"><div>${dt} · ${m.time}</div>
-      <button class="btn sm" onclick="openModal(${m.id})">🔄 Rimanda</button></div>
+    <div class="row between small"><div>${dt} · ${m.oldTime?`<span class="old">${m.oldTime}</span><span class="new">${m.time}</span>`:m.time}</div>
+      <button class="btn sm" onclick="openModal(${m.id})">✏️ Modifica</button></div>
     <div class="teams">
       <div class="t h">${esc(m.home)}</div>
       <div class="row" style="padding:0 8px">
-        <input class="score" type="number" min="0" inputmode="numeric" value="${m.s1}" onchange="setScore(${idx},'s1',this.value)">
+        <input class="score" type="number" min="0" inputmode="numeric" value="${m.s1}" onchange="setScore(${m.id},'s1',this.value)">
         <span class="dash">-</span>
-        <input class="score" type="number" min="0" inputmode="numeric" value="${m.s2}" onchange="setScore(${idx},'s2',this.value)">
+        <input class="score" type="number" min="0" inputmode="numeric" value="${m.s2}" onchange="setScore(${m.id},'s2',this.value)">
       </div>
       <div class="t">${esc(m.away)}</div>
     </div>
@@ -236,30 +291,72 @@ function vCalendario(noFetch){
   if(nextM) h += calCard(nextM, true);
   h += `<div class="chips"><span class="chip ${calFilter==='all'?'on':''}" onclick="setFilter('all')">Tutte</span>
   <span class="chip ${calFilter==='sam'?'on':''}" onclick="setFilter('sam')">Solo ${ME}</span></div>`;
+  h += `<div class="ctr" style="margin-bottom:10px"><button class="btn sm" onclick="openAdd()">➕ Aggiungi partita</button></div>`;
   if(up.length) h += `<h3>Prossime partite</h3>` + up.map(m => calCard(m,false)).join('');
   if(past.length) h += `<h3>Già giocate · risultati</h3>` + past.map(m => calCard(m,false)).join('');
+  if(!matches.length) h += `<div class="empty-msg">Nessuna partita in questo torneo.<br>Usa "Aggiungi partita" per inserire il calendario.</div>`;
   view.innerHTML = h;
   if(fbReady() && !noFetch) refreshRsvp(false);
 }
-function setScore(idx, f, v){ matches[idx][f] = v; saveM(); schedulePub(); }
+function setScore(id, f, v){ const m = findM(id); if(!m) return; m[f] = v; saveM(); schedulePub(); }
 
 /* modal recupero */
 let modalId = null;
-function openModal(id){ modalId=id; const m=matches.find(x=>x.id===id);
-  document.getElementById('modal-name').textContent = `${m.home} vs ${m.away} (originale: ${m.date})`;
-  const nd = parseDate(m.newDate||m.date); document.getElementById('modal-date').value = m.newDate && nd ? `${nd.getFullYear()}-${pad(nd.getMonth()+1)}-${pad(nd.getDate())}` : ''; document.getElementById('modal').classList.add('on'); }
+const toIso = d => d ? `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}` : '';
+const fromIso = v => { const mm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v||''); return mm ? `${mm[3]}/${mm[2]}/${mm[1]}` : ''; };
+function teamOpts(t, cur){ const l = t.teams.slice(); if(cur && !l.includes(cur)) l.push(cur); return l.map(x => `<option ${x===cur?'selected':''}>${esc(x)}</option>`).join(''); }
+function openModal(id){ modalId=id; const m=findM(id), t=tOf(m);
+  document.getElementById('modal-home').innerHTML = teamOpts(t, m.home);
+  document.getElementById('modal-away').innerHTML = teamOpts(t, m.away);
+  document.getElementById('modal-name').textContent = `${m.home} vs ${m.away} · originale: ${m.date} ore ${m.oldTime||m.time}`;
+  document.getElementById('modal-date').value = toIso(parseDate(effDate(m)));
+  document.getElementById('modal-time').value = m.time || '';
+  document.getElementById('modal-reset').style.display = (m.newDate || m.oldTime) ? '' : 'none';
+  document.getElementById('modal').classList.add('on'); }
 function closeModal(){ document.getElementById('modal').classList.remove('on'); modalId=null; }
 function saveRecupero(){
-  const v = document.getElementById('modal-date').value; // AAAA-MM-GG
-  const mm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
-  if(!mm){ alert('Scegli una data'); return; }
-  matches.find(x=>x.id===modalId).newDate = `${mm[3]}/${mm[2]}/${mm[1]}`; saveM(); closeModal(); route(); autoPublish();
+  const m = findM(modalId);
+  const home = document.getElementById('modal-home').value, away = document.getElementById('modal-away').value;
+  if(home === away){ alert('Scegli due squadre diverse'); return; }
+  const d = fromIso(document.getElementById('modal-date').value), t = document.getElementById('modal-time').value;
+  if(!d){ alert('Scegli una data'); return; }
+  if(!/^\d{2}:\d{2}$/.test(t)){ alert('Scegli un orario'); return; }
+  m.home = home; m.away = away;
+  m.newDate = d === m.date ? '' : d;
+  const orig = m.oldTime || m.time;
+  if(t !== orig){ m.oldTime = orig; m.time = t; } else { m.time = orig; delete m.oldTime; }
+  saveM(); closeModal(); route(); autoPublish();
 }
-function clearRecupero(){ matches.find(x=>x.id===modalId).newDate=''; saveM(); closeModal(); route(); autoPublish(); }
+function clearRecupero(){ const m = findM(modalId); m.newDate=''; if(m.oldTime){ m.time = m.oldTime; delete m.oldTime; } saveM(); closeModal(); route(); autoPublish(); }
+function delMatch(){
+  const m = findM(modalId);
+  if(!confirm(`Eliminare ${m.home} vs ${m.away} del ${effDate(m)}? Si perdono anche risultato, presenze e formazione di questa partita.`)) return;
+  const tt = tOf(m); tt.matches.splice(tt.matches.indexOf(m), 1); delete app.att[m.id]; delete app.lineup[m.id]; delete app.man[m.id];
+  saveM(); saveA(); closeModal(); route(); autoPublish();
+}
+function openAdd(){
+  const opts = TEAMS.map(t => `<option>${esc(t)}</option>`).join('');
+  const h = document.getElementById('add-home'), a = document.getElementById('add-away');
+  h.innerHTML = opts; a.innerHTML = opts; h.value = TEAMS.includes(ME) ? ME : TEAMS[0]; a.value = TEAMS.find(t => t !== h.value) || '';
+  document.getElementById('add-date').value = ''; document.getElementById('add-time').value = '17:15';
+  document.getElementById('addm').classList.add('on');
+}
+function saveAdd(){
+  const home = document.getElementById('add-home').value, away = document.getElementById('add-away').value;
+  const d = fromIso(document.getElementById('add-date').value), t = document.getElementById('add-time').value;
+  if(home === away){ alert('Scegli due squadre diverse'); return; }
+  if(!d){ alert('Scegli una data'); return; }
+  if(!/^\d{2}:\d{2}$/.test(t)){ alert('Scegli un orario'); return; }
+  const id = Math.max(0, ...allM().map(x => x.id)) + 1;
+  matches.push({id, date:d, time:t, home, away, s1:'', s2:'', newDate:''});
+  saveM(); document.getElementById('addm').classList.remove('on'); route(); autoPublish();
+}
 
 /* ================= CLASSIFICA ================= */
 function vClassifica(){
-  const t = {}; TEAMS.forEach(n => t[n] = {nome:n,pt:0,g:0,v:0,n:0,p:0,gf:0,gs:0,dr:0});
+  const t = {}, mk = n => { if(!t[n]) t[n] = {nome:n,pt:0,g:0,v:0,n:0,p:0,gf:0,gs:0,dr:0}; };
+  TEAMS.forEach(mk); matches.forEach(m => { mk(m.home); mk(m.away); });
+  const Q = +T.q || 0;
   matches.forEach(m => {
     if(m.s1==='' || m.s2==='' || isNaN(parseInt(m.s1)) || isNaN(parseInt(m.s2))) return;
     const a=parseInt(m.s1), b=parseInt(m.s2), H=t[m.home], A=t[m.away];
@@ -268,10 +365,10 @@ function vClassifica(){
   });
   const arr = Object.values(t); arr.forEach(x=>x.dr=x.gf-x.gs);
   arr.sort((a,b)=> b.pt-a.pt || b.dr-a.dr || b.gf-a.gf);
-  let h = `<h2>Classifica generale</h2><table><thead><tr><th>Pos</th><th class="l">Squadra</th><th>PT</th><th>G</th><th>V</th><th>N</th><th>P</th><th>GF</th><th>GS</th><th>DR</th></tr></thead><tbody>`;
-  arr.forEach((x,i)=>{ h += `<tr class="${i<4?'q':'e'} ${x.nome===ME?'me':''}"><td><b>${i+1}</b></td><td class="l">${esc(x.nome)}</td><td style="color:#60a5fa"><b>${x.pt}</b></td><td>${x.g}</td><td>${x.v}</td><td>${x.n}</td><td>${x.p}</td><td>${x.gf}</td><td>${x.gs}</td><td class="${x.dr>0?'pos':x.dr<0?'neg':''}"><b>${x.dr>0?'+'+x.dr:x.dr}</b></td></tr>`; });
+  let h = `<h2>Classifica · ${esc(T.name)}</h2><table><thead><tr><th>Pos</th><th class="l">Squadra</th><th>PT</th><th>G</th><th>V</th><th>N</th><th>P</th><th>GF</th><th>GS</th><th>DR</th></tr></thead><tbody>`;
+  arr.forEach((x,i)=>{ h += `<tr class="${Q ? (i<Q?'q':'e') : ''} ${x.nome===ME?'me':''}"><td><b>${i+1}</b></td><td class="l">${esc(x.nome)}</td><td style="color:#60a5fa"><b>${x.pt}</b></td><td>${x.g}</td><td>${x.v}</td><td>${x.n}</td><td>${x.p}</td><td>${x.gf}</td><td>${x.gs}</td><td class="${x.dr>0?'pos':x.dr<0?'neg':''}"><b>${x.dr>0?'+'+x.dr:x.dr}</b></td></tr>`; });
   h += `</tbody></table>
-  <div class="legend"><div><i style="background:#14532d"></i>Qualificate alle semifinali (1°-4°)</div><div style="margin-top:4px"><i style="background:#7f1d1d"></i>Eliminate / finalina</div>
+  <div class="legend">${Q ? `<div><i style="background:#14532d"></i>Qualificate (1°-${Q}°)</div><div style="margin-top:4px"><i style="background:#7f1d1d"></i>Non qualificate</div>` : ''}
   <div style="margin-top:4px">Ordine: punti, differenza reti, gol fatti.</div></div>`;
   view.innerHTML = h;
 }
@@ -280,16 +377,19 @@ function vClassifica(){
 let imp = [], impIdx = 0, impToday = 0;
 function buildImpegni(){
   imp = [];
-  const end = new Date(2026,11,12); const cur = new Date(2026,9,13);
+  const ours = allM().filter(isSam), many = tdata.list.length > 1;
+  const evs = []; tdata.list.forEach(t => (t.events||[]).forEach(e => evs.push({...e, t:t.name})));
+  const ds = ours.map(m => parseDate(effDate(m))).concat(evs.map(e => parseDate(e.date))).filter(Boolean);
+  if(!ds.length) return;
+  const cur = new Date(Math.min(...ds)), end = new Date(Math.max(...ds));
   while(cur <= end){
     const s = fmtDate(cur), dn = DAYS[cur.getDay()], tt = cur.getDay()===2 || cur.getDay()===4;
-    const sm = matches.filter(m => effDate(m)===s && isSam(m));
-    if(sm.length){ sm.forEach(m => imp.push({d:new Date(cur),title:dn+' '+s,type:'Campionato',cls:'Campionato',detail:`Vs ${m.home===ME?m.away:m.home} (${m.time})`,id:m.id})); }
+    const sm = ours.filter(m => effDate(m)===s);
+    if(sm.length){ sm.forEach(m => { const t = tOf(m); imp.push({d:new Date(cur),title:dn+' '+s,type:many?t.name:'Campionato',cls:'Campionato',detail:`Vs ${m.home===t.me?m.away:m.home} (${m.time})`,id:m.id}); }); }
     else if(tt){ imp.push({d:new Date(cur),title:dn+' '+s,type:'Allenamento',cls:'Allenamento',detail:'Sessione standard'}); }
     cur.setDate(cur.getDate()+1);
   }
-  imp.push({d:new Date(2026,11,10),title:'Giovedì 10/12/2026',type:'Fasi Finali',cls:'Fasi',detail:'Semifinali (se qualificati)'});
-  imp.push({d:new Date(2026,11,12),title:'Sabato 12/12/2026',type:'Fasi Finali',cls:'Fasi',detail:'Finali / Finalina'});
+  evs.forEach(e => { const d = parseDate(e.date); if(d) imp.push({d,title:DAYS[d.getDay()]+' '+e.date,type:many?e.title+' · '+e.t:e.title,cls:'Fasi',detail:e.detail}); });
   imp.sort((a,b)=>a.d-b.d);
   const today = new Date(); today.setHours(0,0,0,0);
   impToday = imp.findIndex(x => x.d >= today); if(impToday<0) impToday = imp.length-1;
@@ -297,7 +397,8 @@ function buildImpegni(){
 }
 function vImpegni(){
   buildImpegni();
-  let h = `<h2 style="color:#4ade80">Impegni ${ME}</h2>
+  if(!imp.length){ view.innerHTML = '<h2 style="color:#4ade80">Impegni</h2><div class="empty-msg">Nessun impegno in calendario.</div>'; return; }
+  let h = `<h2 style="color:#4ade80">Impegni${tdata.list.length>1?' · tutti i tornei':' '+esc(ME)}</h2>
   <div class="card"><div class="small ctr" id="sl-title" style="text-transform:uppercase;letter-spacing:.05em"></div>
   <div class="row between" style="margin-top:8px">
     <button class="btn" id="sl-prev" onclick="moveSl(-1)">⬅️</button>
@@ -341,18 +442,17 @@ const shirtTxt = p => p.num ? esc(p.num) : esc(p.name.trim().charAt(0).toUpperCa
 const firstName = p => esc(p.name.trim().split(/\s+/)[0]);
 
 function vPartita(id, noFetch){
-  const m = matches.find(x=>x.id===id);
+  const m = findM(id);
   if(!m || !isSam(m)){ location.hash = '#/calendario'; return; }
   curMatch = id;
-  const idx = matches.indexOf(m);
   const sam = ''; 
   let h = `<div class="row between" style="margin-bottom:8px"><a class="btn sm" href="#/calendario">← Indietro</a><span class="small">${m.newDate?`<span class="old">${m.date}</span><span class="new">${m.newDate}</span>`:m.date} · ${m.time}</span></div>
   <div class="card"><div class="teams" style="margin-top:0">
     <div class="t h">${esc(m.home)}</div>
     <div class="row" style="padding:0 8px">
-      <input class="score" type="number" min="0" inputmode="numeric" value="${m.s1}" onchange="setScore(${idx},'s1',this.value)">
+      <input class="score" type="number" min="0" inputmode="numeric" value="${m.s1}" onchange="setScore(${m.id},'s1',this.value)">
       <span class="dash">-</span>
-      <input class="score" type="number" min="0" inputmode="numeric" value="${m.s2}" onchange="setScore(${idx},'s2',this.value)">
+      <input class="score" type="number" min="0" inputmode="numeric" value="${m.s2}" onchange="setScore(${m.id},'s2',this.value)">
     </div><div class="t">${esc(m.away)}</div></div></div>`;
   if(!app.players.length){
     h += `<div class="card empty-msg">Non hai ancora inserito i bambini.<br><br><a class="btn primary" href="#/rosa">Vai alla Rosa e aggiungili</a></div>`;
@@ -514,7 +614,7 @@ function followMatch(mid){
 // le presenze seguono le risposte dei genitori (finché non le modifichi tu a mano) per le partite di oggi e future
 function followRsvp(){
   const tdy = new Date(); tdy.setHours(0,0,0,0); let ch = false;
-  matches.filter(isSam).forEach(m => { const d = parseDate(effDate(m)); if(d && d >= tdy && followMatch(m.id)) ch = true; });
+  allM().filter(isSam).forEach(m => { const d = parseDate(effDate(m)); if(d && d >= tdy && followMatch(m.id)) ch = true; });
   if(ch) saveA();
 }
 function applyRsvp(){
@@ -525,7 +625,7 @@ function newToken(){ const b=new Uint8Array(15); crypto.getRandomValues(b); retu
 function ensureTokens(){ let ch=false; app.players.forEach(p=>{ if(!p.token){ p.token=newToken(); ch=true; } }); if(ch) saveA(); }
 async function publishFamilies(){
   ensureTokens(); await ensurePids();
-  const mo = {}; matches.filter(isSam).forEach(m => mo[m.id] = {home:m.home, away:m.away, date:effDate(m), time:m.time});
+  const mo = {}; allM().filter(isSam).forEach(m => mo[m.id] = {home:m.home, away:m.away, date:effDate(m), time:m.time, t:tOf(m).name});
   const fam = {}; app.players.forEach(p => fam[p.token] = {name:p.name, pid:p.pid, matches:mo});
   const pids = {}; app.players.forEach(p => pids[p.pid] = true);
   await fbReq('PUT','pids',pids);
@@ -533,7 +633,12 @@ async function publishFamilies(){
   await fbReq('PUT','public',pubData());
   refreshRsvp(false);
 }
-function pubData(){ return {upd:new Date().toISOString(), n:app.players.length, matches: matches.map(m=>({id:m.id,date:m.date,newDate:m.newDate||'',time:m.time,home:m.home,away:m.away,s1:m.s1,s2:m.s2}))}; }
+function pubData(){
+  const tours = {};
+  tdata.list.forEach(t => tours[t.id] = {name:t.name, me:t.me, q:+t.q||0, teams:t.teams,
+    matches: t.matches.map(m=>({id:m.id,date:m.date,newDate:m.newDate||'',time:m.time,oldTime:m.oldTime||'',home:m.home,away:m.away,s1:m.s1,s2:m.s2}))});
+  return {upd:new Date().toISOString(), n:app.players.length, cur:tdata.cur, tournaments:tours};
+}
 let pubT = null;
 function schedulePub(){ if(!fbReady()) return; clearTimeout(pubT); pubT = setTimeout(()=>fbReq('PUT','public',pubData()).catch(()=>{}), 1500); }
 async function autoPublish(){ if(fbReady() && app.players.length){ try{ await publishFamilies(); }catch(e){} } }
@@ -550,7 +655,7 @@ function fbLinks(){
   h += `<h3>Link personali</h3><div class="card">`;
   app.players.forEach(p => {
     const link = parentLink(p);
-    const wa = 'https://wa.me/?text=' + encodeURIComponent(`Ciao! Qui puoi segnare la presenza di ${p.name} alle partite Winter Cup (Sam 89). Puoi cambiare risposta quando vuoi: ${link}`);
+    const wa = 'https://wa.me/?text=' + encodeURIComponent(`Ciao! Qui puoi segnare la presenza di ${p.name} alle partite. Puoi cambiare risposta quando vuoi: ${link}`);
     h += `<div class="linkrow"><b>${esc(p.name)}</b><div class="row"><button class="btn sm" onclick="copyLink('${p.id}')">Copia</button><a class="btn sm primary" target="_blank" rel="noopener" href="${wa}">WhatsApp</a></div></div>`;
   });
   return h + `</div>`;
@@ -585,11 +690,66 @@ async function copyLink(id){
   try{ await navigator.clipboard.writeText(link); alert('Link copiato'); }catch(e){ prompt('Copia il link:', link); }
 }
 
+/* ================= TORNEI ================= */
+let tEdit = null;
+function vTornei(){
+  let h = `<h2>Tornei</h2>`;
+  if(tEdit){
+    const t = tEdit==='new' ? {name:'', me:ME, teams:[ME], q:4} : tdata.list.find(x => x.id===tEdit);
+    h += `<div class="card"><h3 style="margin-top:0;color:#fff">${tEdit==='new'?'Nuovo torneo':'Modifica torneo'}</h3>
+      <label class="f">Nome del torneo</label><input type="text" id="tn-name" value="${esc(t.name)}" placeholder="es. Torneo di Primavera 2027">
+      <label class="f">La nostra squadra (nome usato nel calendario)</label><input type="text" id="tn-me" value="${esc(t.me)}">
+      <label class="f">Squadre partecipanti, una per riga (compresa la nostra)</label><textarea id="tn-teams" rows="7">${esc(t.teams.join('\n'))}</textarea>
+      <label class="f">Quante si qualificano (0 = nessuna fase finale)</label><input type="number" id="tn-q" min="0" inputmode="numeric" value="${+t.q||0}">
+      <div class="stack" style="margin-top:12px"><button class="btn primary" style="width:100%" onclick="saveTorneo()">Salva</button>
+      <button class="btn" style="width:100%" onclick="tEdit=null;vTornei()">Annulla</button></div></div>`;
+  } else {
+    h += `<div class="stack"><button class="btn primary" style="width:100%" onclick="tEdit='new';vTornei()">➕ Nuovo torneo</button></div>`;
+  }
+  tdata.list.forEach(t => {
+    h += `<div class="card ${t.id===T.id?'sam':''}"><div class="row between"><div><b>${esc(t.name)}</b>${t.id===T.id?' <span class="small" style="color:#60a5fa">· aperto</span>':''}
+      <div class="small">${esc(t.me)} · ${t.teams.length} squadre · ${t.matches.length} partite</div></div></div>
+      <div class="row" style="margin-top:8px;flex-wrap:wrap">
+        ${t.id!==T.id?`<button class="btn sm primary" onclick="pickTorneo('${t.id}')">Apri</button>`:''}
+        <button class="btn sm" onclick="tEdit='${t.id}';vTornei();window.scrollTo(0,0)">✏️ Modifica</button>
+        ${tdata.list.length>1?`<button class="btn sm danger" onclick="delTorneo('${t.id}')">🗑 Elimina</button>`:''}</div></div>`;
+  });
+  h += `<div class="small" style="margin-top:8px">La rosa dei bambini e i link dei genitori valgono per tutti i tornei: i genitori vedono le partite di tutti i tornei e possono scegliere il torneo in Calendario e Classifica.</div>`;
+  view.innerHTML = h;
+}
+function saveTorneo(){
+  const name = document.getElementById('tn-name').value.trim(), me = document.getElementById('tn-me').value.trim();
+  const teams = [...new Set(document.getElementById('tn-teams').value.split('\n').map(x => x.trim()).filter(Boolean))];
+  const q = Math.max(0, parseInt(document.getElementById('tn-q').value) || 0);
+  if(!name){ alert('Scrivi il nome del torneo'); return; }
+  if(!me){ alert('Scrivi il nome della nostra squadra'); return; }
+  if(!teams.includes(me)) teams.unshift(me);
+  if(teams.length < 2){ alert('Servono almeno due squadre'); return; }
+  if(tEdit==='new'){
+    const t = {id:'t'+Date.now().toString(36), name, me, teams, q, matches:[], events:[]};
+    tdata.list.push(t); setCur(t.id);
+  } else {
+    const t = tdata.list.find(x => x.id===tEdit);
+    if(t.me !== me && !teams.includes(t.me)) t.matches.forEach(m => { if(m.home===t.me) m.home = me; if(m.away===t.me) m.away = me; });
+    const used = [...new Set(t.matches.flatMap(m => [m.home, m.away]))].filter(x => !teams.includes(x));
+    if(used.length){ alert('Queste squadre hanno ancora partite in calendario, non puoi toglierle: ' + used.join(', ') + '.\nModifica o elimina prima quelle partite.'); return; }
+    Object.assign(t, {name, me, teams, q}); setCur(tdata.cur);
+  }
+  tEdit = null; saveM(); autoPublish(); renderTsel(); vTornei();
+}
+function delTorneo(id){
+  const t = tdata.list.find(x => x.id===id);
+  if(!confirm(`Eliminare il torneo "${t.name}" con tutte le sue ${t.matches.length} partite, risultati e presenze?`)) return;
+  t.matches.forEach(m => { delete app.att[m.id]; delete app.lineup[m.id]; delete app.man[m.id]; });
+  tdata.list = tdata.list.filter(x => x.id!==id); setCur(tdata.cur===id ? tdata.list[0].id : tdata.cur);
+  saveM(); saveA(); autoPublish(); renderTsel(); vTornei();
+}
+
 /* ================= ROSA ================= */
 function uid(){ return 'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function vRosa(){
   const tdy = new Date(); tdy.setHours(0,0,0,0);
-  const recorded = matches.filter(m => { const d = parseDate(effDate(m)); return isSam(m) && app.att[m.id] && d && d <= tdy; });
+  const recorded = allM().filter(m => { const d = parseDate(effDate(m)); return isSam(m) && app.att[m.id] && d && d <= tdy; });
   let h = `<h2>Rosa ${ME}</h2>
   <div class="card stack"><div class="row"><input type="text" id="np-name" placeholder="Nome del bambino" style="flex:1" onkeydown="if(event.key==='Enter')addPlayer()"><input type="number" id="np-num" placeholder="N°" inputmode="numeric" style="width:70px"></div>
   <button class="btn primary" style="width:100%" onclick="addPlayer()">+ Aggiungi</button>
@@ -636,17 +796,21 @@ function delPlayer(id){
   saveA(); vRosa();
 }
 function exportData(){
-  const blob = new Blob([JSON.stringify({v:1,matches,app},null,1)],{type:'application/json'});
+  const blob = new Blob([JSON.stringify({v:2,tornei:tdata,app},null,1)],{type:'application/json'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = 'winter-cup-backup-'+new Date().toISOString().slice(0,10)+'.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  a.download = 'tornei-backup-'+new Date().toISOString().slice(0,10)+'.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
 function importData(f){
   if(!f) return; const r = new FileReader();
   r.onload = () => { try{
     const d = JSON.parse(r.result);
-    if(!Array.isArray(d.matches) || !d.app || !Array.isArray(d.app.players)) throw 0;
+    if(!d.app || !Array.isArray(d.app.players)) throw 0;
+    let td = null;
+    if(d.tornei && Array.isArray(d.tornei.list) && d.tornei.list.length) td = d.tornei;
+    else if(Array.isArray(d.matches)) td = {cur:'wc26', list:[legacyTorneo(d.matches)]};
+    else throw 0;
     if(!confirm('Sostituire i dati attuali con quelli del backup?')) return;
-    matches = d.matches; app = d.app; app.att=app.att||{}; app.lineup=app.lineup||{}; saveM(); saveA(); route();
+    tdata = td; setCur(tdata.cur); app = d.app; app.att=app.att||{}; app.lineup=app.lineup||{}; app.man=app.man||{}; saveM(); saveA(); route();
   }catch(e){ alert('File di backup non valido.'); } };
   r.readAsText(f);
 }
