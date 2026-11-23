@@ -16,7 +16,7 @@ body{margin:0;background:var(--bg);color:var(--txt);font-family:-apple-system,Bl
 header{background:var(--card);border-bottom:1px solid var(--line);padding:12px 16px;text-align:center;position:sticky;top:0;z-index:20}
 header h1{margin:0;font-size:20px}
 nav{display:flex;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:48px;z-index:20}
-nav a{flex:1;text-align:center;padding:12px 4px;color:var(--mut);text-decoration:none;font-size:14px;border-bottom:2px solid transparent}
+nav a{flex:1;text-align:center;padding:12px 4px;color:var(--mut);text-decoration:none;font-size:13px;border-bottom:2px solid transparent}
 nav a.active{color:var(--blue);border-color:var(--blue);font-weight:700}
 main{max-width:640px;margin:0 auto;padding:14px 10px 40px}
 h2{font-size:19px;text-align:center;color:#60a5fa;margin:6px 0 14px}
@@ -86,6 +86,10 @@ tr.me td.l{color:#93c5fd;font-weight:700}
 .bar>div{height:100%;background:#22c55e}
 .empty-msg{text-align:center;color:var(--mut);padding:24px 8px}
 .ctr{text-align:center}
+.nt{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;font-weight:700}
+.nt.promemoria{background:#1e3a8a;color:#93c5fd}.nt.info{background:#374151;color:#d1d5db}.nt.importante{background:#7f1d1d;color:#fca5a5}
+.ntext{white-space:pre-wrap;font-size:14px;margin-top:6px;word-break:break-word;line-height:1.4}
+.card.exp{opacity:.5}
 header{padding:8px 12px;min-height:48px}
 .tsel{background:#111827;color:#fff;font-size:17px;font-weight:700;border:1px solid #374151;border-radius:8px;padding:6px 8px;max-width:78vw}
 .tsel:focus{outline:none;border-color:var(--blue)}
@@ -106,6 +110,7 @@ label.f{display:block;font-size:12px;color:var(--mut);margin:8px 0 3px}
   <a href="#/calendario" data-t="calendario">Calendario</a>
   <a href="#/classifica" data-t="classifica">Classifica</a>
   <a href="#/impegni" data-t="impegni">Impegni</a>
+  <a href="#/avvisi" data-t="avvisi">Avvisi</a>
   <a href="#/rosa" data-t="rosa">Rosa</a>
 </nav>
 <main id="view"></main>
@@ -234,6 +239,7 @@ function route(){
   else if(name==='rosa') vRosa();
   else if(name==='partita') vPartita(+arg);
   else if(name==='tornei') vTornei();
+  else if(name==='avvisi') vAvvisi();
   else vCalendario();
   renderTsel();
   window.scrollTo(0,0);
@@ -688,6 +694,78 @@ async function fbPublish(){
 async function copyLink(id){
   const link = parentLink(pById(id));
   try{ await navigator.clipboard.writeText(link); alert('Link copiato'); }catch(e){ prompt('Copia il link:', link); }
+}
+
+/* ================= AVVISI ================= */
+const NTYPES = {promemoria:'⏰ Promemoria', info:'💬 Comunicazione', importante:'⚠️ Importante'};
+const linkify = t => esc(t).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:#60a5fa">$1</a>');
+const fmtTs = iso => { try{ return new Date(iso).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } };
+let newsCache = null, nEdit = null;
+function vAvvisi(){
+  if(!fbReady()){ view.innerHTML = `<h2>Avvisi ai genitori</h2><div class="card empty-msg">Per mandare avvisi ai genitori collega prima il database<br>(Rosa → Collegamento al database).</div>`; return; }
+  view.innerHTML = `<h2>Avvisi ai genitori</h2><div id="nform"></div><h3>Avvisi pubblicati</h3><div id="nlist"><div class="small ctr">Caricamento…</div></div>`;
+  renderNForm();
+  loadNews();
+}
+async function loadNews(){
+  try{ newsCache = (await fbReq('GET','news')) || {}; renderNList(); }
+  catch(e){ const l = document.getElementById('nlist'); if(l) l.innerHTML = `<div class="status ko">Non riesco a leggere gli avvisi: ${esc(e.message)}. Hai incollato in Firebase le regole aggiornate (database.rules.json)?</div>`; }
+}
+function renderNForm(n){
+  n = n || {type:'info', title:'', text:'', until:'', pin:false};
+  const el = document.getElementById('nform'); if(!el) return;
+  el.innerHTML = `<div class="card"><div class="row between"><b>${nEdit?'Modifica avviso':'Nuovo avviso'}</b>
+    ${nEdit?'':`<button class="btn sm" onclick="prefillNext()">📋 Promemoria prossima partita</button>`}</div>
+    <label class="f">Tipo</label><select id="n-type" class="fsel" style="margin-bottom:0">${Object.entries(NTYPES).map(([k,v]) => `<option value="${k}" ${n.type===k?'selected':''}>${v}</option>`).join('')}</select>
+    <label class="f">Titolo</label><input type="text" id="n-title" value="${esc(n.title)}" placeholder="es. Ritrovo anticipato">
+    <label class="f">Testo</label><textarea id="n-text" rows="5" placeholder="Scrivi qui il messaggio per i genitori">${esc(n.text)}</textarea>
+    <label class="f">Visibile fino al (facoltativo: dopo questa data sparisce)</label><input type="date" id="n-until" value="${n.until ? toIso(parseDate(n.until)) : ''}" style="background:var(--card2);border:1px solid #4b5563;border-radius:8px;color:var(--txt);padding:9px;font-size:16px;width:100%;color-scheme:dark;min-height:44px">
+    <label class="row" style="margin-top:10px;gap:8px;font-size:14px"><input type="checkbox" id="n-pin" ${n.pin?'checked':''} style="width:20px;height:20px"> In evidenza (sempre in cima alla pagina dei genitori)</label>
+    <div class="stack" style="margin-top:12px"><button class="btn primary" style="width:100%" onclick="saveNews()">${nEdit?'Salva modifiche':'📣 Pubblica per i genitori'}</button>
+    ${nEdit?`<button class="btn" style="width:100%" onclick="nEdit=null;renderNForm()">Annulla</button>`:''}</div>
+    <div class="small">Gli avvisi si leggono dal link personale dei genitori. Non scrivere dati riservati.</div></div>`;
+}
+function prefillNext(){
+  const tdy = new Date(); tdy.setHours(0,0,0,0);
+  const m = allM().filter(x => { const d = parseDate(effDate(x)); return isSam(x) && d && d >= tdy; }).sort((a,b) => sortKey(a)-sortKey(b))[0];
+  if(!m){ alert('Non ci sono partite in programma.'); return; }
+  const d = parseDate(effDate(m)), t = tOf(m);
+  let si = null; if(app.players.length && Object.keys(rsvpCache).length){ si = 0; app.players.forEach(p => { if(rsvpOf(p,m.id)==='si') si++; }); }
+  const text = `Ricordo la partita di ${DAYS[d.getDay()].toLowerCase()} ${effDate(m)} alle ore ${m.time}: ${m.home} – ${m.away}${tdata.list.length>1?' ('+t.name+')':''}.\nRitrovo: \n\n`
+    + (si!==null ? `Finora hanno confermato ${si} bambin${si===1?'o':'i'}${si<MIN?`, ne servono almeno ${MIN}`:''}.\n` : '')
+    + `Chi non l'ha ancora fatto segni la presenza dal proprio link. Grazie!`;
+  renderNForm({type:'promemoria', title:`Partita ${m.home} – ${m.away}`, text, until:effDate(m), pin:false});
+  document.getElementById('n-text').focus();
+}
+async function saveNews(){
+  const title = document.getElementById('n-title').value.trim(), text = document.getElementById('n-text').value.trim();
+  if(!title && !text){ alert('Scrivi almeno il titolo o il testo'); return; }
+  const id = nEdit || ('n' + Date.now().toString(36));
+  const old = (newsCache||{})[id] || {};
+  const data = {type:document.getElementById('n-type').value, title, text, until:fromIso(document.getElementById('n-until').value),
+    pin:document.getElementById('n-pin').checked, date: old.date || new Date().toISOString(), upd: new Date().toISOString()};
+  try{ await fbReq('PUT','news/'+id, data); (newsCache = newsCache || {})[id] = data; nEdit = null; renderNForm(); renderNList(); }
+  catch(e){ alert('Avviso non pubblicato: ' + e.message); }
+}
+function nExpired(n){ const d = parseDate(n.until); const t = new Date(); t.setHours(0,0,0,0); return d && d < t; }
+function renderNList(){
+  const el = document.getElementById('nlist'); if(!el) return;
+  const arr = Object.entries(newsCache||{}).filter(([k,n]) => n).map(([id,n]) => ({id,...n}));
+  if(!arr.length){ el.innerHTML = '<div class="small">Nessun avviso pubblicato.</div>'; return; }
+  arr.sort((a,b) => (nExpired(a)-nExpired(b)) || ((b.pin?1:0)-(a.pin?1:0)) || String(b.date).localeCompare(String(a.date)));
+  el.innerHTML = arr.map(n => {
+    const wa = 'https://wa.me/?text=' + encodeURIComponent((n.title ? '*'+n.title+'*\n\n' : '') + (n.text||''));
+    return `<div class="card ${nExpired(n)?'exp':''}"><div class="row between"><span class="nt ${esc(n.type)}">${NTYPES[n.type]||''}</span><span class="small">${n.pin?'📌 ':''}${fmtTs(n.date)}${nExpired(n)?' · scaduto':n.until?' · fino al '+esc(n.until):''}</span></div>
+      ${n.title?`<div style="font-weight:700;margin-top:6px">${esc(n.title)}</div>`:''}<div class="ntext">${linkify(n.text||'')}</div>
+      <div class="row" style="margin-top:8px;flex-wrap:wrap"><a class="btn sm primary" target="_blank" rel="noopener" href="${wa}">Inoltra su WhatsApp</a>
+      <button class="btn sm" onclick="editNews('${n.id}')">✏️</button><button class="btn sm danger" onclick="delNews('${n.id}')">🗑</button></div></div>`;
+  }).join('');
+}
+function editNews(id){ nEdit = id; renderNForm(newsCache[id]); window.scrollTo(0,0); }
+async function delNews(id){
+  if(!confirm('Eliminare questo avviso? Sparirà anche dalla pagina dei genitori.')) return;
+  try{ await fbReq('DELETE','news/'+id); delete newsCache[id]; if(nEdit===id){ nEdit=null; renderNForm(); } renderNList(); }
+  catch(e){ alert('Non eliminato: ' + e.message); }
 }
 
 /* ================= TORNEI ================= */

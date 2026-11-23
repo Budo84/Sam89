@@ -38,7 +38,7 @@ details.more summary{cursor:pointer;color:#9ca3af;font-size:14px;padding:10px 4p
 details.more[open] summary{margin-bottom:12px}
 details.more .card{opacity:.92}
 .tabs{display:flex;background:#1f2937;border-bottom:1px solid #374151;position:sticky;top:0;z-index:5;margin:-16px -12px 14px}
-.tabs button{flex:1;padding:13px 4px;background:none;border:0;border-bottom:2px solid transparent;color:#9ca3af;font-size:14px;cursor:pointer}
+.tabs button{flex:1;padding:13px 2px;background:none;border:0;border-bottom:2px solid transparent;color:#9ca3af;font-size:14px;cursor:pointer}
 .tabs button.on{color:#60a5fa;border-color:#60a5fa;font-weight:700}
 .chips{display:flex;gap:6px;margin-bottom:12px}
 .chip{padding:6px 12px;border-radius:999px;border:1px solid #374151;background:#1f2937;color:#9ca3af;font-size:13px;cursor:pointer}
@@ -75,6 +75,15 @@ tr.q{background:#14532d44}tr.e{background:#7f1d1d44}tr.me td.l{color:#93c5fd;fon
 .min.ok{background:#14532d88;color:#4ade80}.min.wait{background:#78350f88;color:#fbbf24}
 .sec{font-size:14px;font-weight:700;color:#9ca3af;margin:14px 2px 8px}
 .next .res{margin-top:10px}
+.nt{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;font-weight:700}
+.nt.promemoria{background:#1e3a8a;color:#93c5fd}.nt.info{background:#374151;color:#d1d5db}.nt.importante{background:#7f1d1d;color:#fca5a5}
+.ntext{white-space:pre-wrap;font-size:15px;margin-top:6px;word-break:break-word;line-height:1.45;color:#e5e7eb}
+.ntitle{font-weight:700;font-size:16px;margin-top:8px}
+.nmeta{font-size:12px;color:#9ca3af}
+.newb{display:inline-block;background:#dc2626;color:#fff;font-size:11px;font-weight:700;border-radius:999px;padding:1px 7px;margin-left:4px}
+.card.imp{border-color:#b91c1c}
+.card.pin{border-color:#ca8a04;background:#422006}
+.banner{display:block;width:100%;text-align:left;background:#1e3a8a;border:1px solid #2563eb;color:#fff;border-radius:10px;padding:11px 12px;font-size:15px;margin-bottom:12px;cursor:pointer}
 .foot{text-align:center;font-size:12px;color:#6b7280;margin-top:18px}
 </style>
 </head>
@@ -89,7 +98,7 @@ const DB = (q.get('d')||'').replace(/\/+$/,'');
 const TOK = q.get('f')||'';
 const main = document.getElementById('main');
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let fam = null, rsvp = {}, votes = {}, pub = null, tab = 'pres', calFilter = 'all';
+let fam = null, rsvp = {}, votes = {}, news = {}, pub = null, tab = 'pres', calFilter = 'all';
 let ME = 'Sam 89', selT = null;
 const MIN = 5; // minimo di bambini per giocare
 
@@ -107,7 +116,7 @@ async function init(){
     if(!fam){ main.innerHTML = '<div class="msg err">Link non valido o non più attivo. Chiedi di nuovo il link all\'allenatore.</div>'; return; }
     await loadRsvp();
     try{ const pr = await fetch(`${DB}/public.json`); pub = pr.ok ? await pr.json() : null; }catch(e){ pub = null; }
-    await loadVotes();
+    await loadVotes(); await loadNews();
     render();
     setInterval(refreshAll, 10*60*1000);
     document.addEventListener('visibilitychange', () => { if(!document.hidden) refreshAll(); });
@@ -117,7 +126,7 @@ async function loadVotes(){ try{ const r = await fetch(`${DB}/votes.json`); vote
 async function refreshAll(){
   try{
     const fr = await fetch(`${DB}/families/${TOK}.json`); if(fr.ok){ const f = await fr.json(); if(f) fam = f; }
-    await loadRsvp(); await loadVotes();
+    await loadRsvp(); await loadVotes(); await loadNews();
     const pr = await fetch(`${DB}/public.json`); if(pr.ok){ const d = await pr.json(); if(d) pub = d; }
     render();
   }catch(e){}
@@ -150,7 +159,10 @@ function renderPres(){
   const today = new Date(); today.setHours(0,0,0,0);
   const ms = Object.entries(fam.matches||{}).map(([id,m])=>({id,...m,d:parseD(m.date)}))
     .filter(m => m.d && m.d >= today).sort((a,b)=>a.d-b.d || String(a.time).localeCompare(String(b.time)));
-  let h = `<div class="hello">Presenza di <b>${esc(fam.name)}</b></div>`;
+  let h = '';
+  const u = unread(); if(u) h += `<button class="banner" onclick="setTab('avv')">📣 ${u===1?'C\'è 1 nuovo avviso':'Ci sono '+u+' nuovi avvisi'} — tocca per leggere</button>`;
+  liveNews().filter(n => n.pin).forEach(n => { h += newsCard(n, false); });
+  h += `<div class="hello">Presenza di <b>${esc(fam.name)}</b></div>`;
   if(!ms.length){ h += '<div class="msg">Non ci sono partite in programma.</div>'; }
   else {
     h += matchCard(ms[0], true);
@@ -219,10 +231,35 @@ function renderClass(){
   arr.forEach((x,i)=>{ h += `<tr class="${Q ? (i<Q?'q':'e') : ''} ${x.nome===ME?'me':''}"><td><b>${i+1}</b></td><td class="l">${esc(x.nome)}</td><td style="color:#60a5fa"><b>${x.pt}</b></td><td>${x.g}</td><td>${x.v}</td><td>${x.n}</td><td>${x.p}</td><td>${x.gf}</td><td>${x.gs}</td><td class="${x.dr>0?'pos':x.dr<0?'neg':''}"><b>${x.dr>0?'+'+x.dr:x.dr}</b></td></tr>`; });
   return h + '</tbody></table><div class="legend">' + (Q ? `<div><i style="background:#14532d"></i>Qualificate (1°-${Q}°)</div><div style="margin-top:4px"><i style="background:#7f1d1d"></i>Non qualificate</div>` : '') + (pub.upd ? `<div style="margin-top:4px">Aggiornata il ${new Date(pub.upd).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>` : '') + '</div>';
 }
+async function loadNews(){ try{ const r = await fetch(`${DB}/news.json`); news = (r.ok && await r.json()) || {}; }catch(e){} }
+const NTYPES = {promemoria:'⏰ Promemoria', info:'💬 Comunicazione', importante:'⚠️ Importante'};
+const SEEN = 'wcSeen_' + TOK;
+function seenAt(){ try{ return localStorage.getItem(SEEN) || ''; }catch(e){ return ''; } }
+function markSeen(){ try{ localStorage.setItem(SEEN, new Date().toISOString()); }catch(e){} }
+function liveNews(){
+  const t = new Date(); t.setHours(0,0,0,0);
+  return Object.entries(news||{}).filter(([k,n]) => n).map(([id,n]) => ({id,...n}))
+    .filter(n => { const d = parseD(n.until); return !d || d >= t; })
+    .sort((a,b) => ((b.pin?1:0)-(a.pin?1:0)) || String(b.date).localeCompare(String(a.date)));
+}
+function unread(){ const s = seenAt(); return liveNews().filter(n => !s || String(n.date) > s || String(n.upd||'') > s).length; }
+const linkify = t => esc(t).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:#60a5fa">$1</a>');
+const fmtTs = iso => { try{ return new Date(iso).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } };
+function newsCard(n, isNew){
+  return `<div class="card ${n.type==='importante'?'imp':''} ${n.pin?'pin':''}"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span><span class="nt ${esc(n.type)}">${NTYPES[n.type]||''}</span>${isNew?'<span class="newb">Nuovo</span>':''}</span><span class="nmeta">${n.pin?'📌 ':''}${fmtTs(n.date)}</span></div>
+    ${n.title?`<div class="ntitle">${esc(n.title)}</div>`:''}<div class="ntext">${linkify(n.text||'')}</div></div>`;
+}
+function renderNews(){
+  const l = liveNews(), s = seenAt();
+  if(!l.length) return '<div class="msg">Nessun avviso al momento.</div>';
+  return l.map(n => newsCard(n, !s || String(n.date) > s || String(n.upd||'') > s)).join('');
+}
 function setTab(t){ tab = t; render(); window.scrollTo(0,0); }
 function render(){
-  const tabs = `<div class="tabs"><button class="${tab==='pres'?'on':''}" onclick="setTab('pres')">Presenza</button><button class="${tab==='cal'?'on':''}" onclick="setTab('cal')">Calendario</button><button class="${tab==='cla'?'on':''}" onclick="setTab('cla')">Classifica</button></div>`;
-  main.innerHTML = tabs + (tab==='cal' ? renderCal() : tab==='cla' ? renderClass() : renderPres());
+  const u = unread();
+  const tabs = `<div class="tabs"><button class="${tab==='pres'?'on':''}" onclick="setTab('pres')">Presenza</button><button class="${tab==='avv'?'on':''}" onclick="setTab('avv')">Avvisi${u&&tab!=='avv'?`<span class="newb">${u}</span>`:''}</button><button class="${tab==='cal'?'on':''}" onclick="setTab('cal')">Calendario</button><button class="${tab==='cla'?'on':''}" onclick="setTab('cla')">Classifica</button></div>`;
+  main.innerHTML = tabs + (tab==='cal' ? renderCal() : tab==='cla' ? renderClass() : tab==='avv' ? renderNews() : renderPres());
+  if(tab==='avv') markSeen();
 }
 let pending = null;
 function closePop(){ document.getElementById('ov').classList.remove('on'); pending = null; }
